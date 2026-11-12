@@ -370,6 +370,10 @@ export const api = {
     request<Record<string, number>>(`/api/v1/projects/${projectId}/metrics/snapshot`, {
       method: "POST",
     }),
+  metricOutcomes: (projectId: string, hours = 24) =>
+    request<Record<string, number>>(
+      `/api/v1/projects/${projectId}/metrics/outcomes?hours=${hours}`,
+    ),
   healthChecks: (projectId: string) =>
     request<
       Array<{
