@@ -1,13 +1,17 @@
 from __future__ import annotations
 
+import asyncio
 import logging
 import re
+import smtplib
 from datetime import UTC, datetime, timedelta
+from email.message import EmailMessage
 
 import httpx
 from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from fleetkit_api.config import get_settings
 from fleetkit_api.models import App, Job, JobStatus, Worker, WorkerStatus
 from fleetkit_api.models_ext import (
     AlertFire,
@@ -88,14 +92,47 @@ def _compare(left: float, op: str, right: float) -> bool:
     return left == right
 
 
+def _is_slack_url(url: str) -> bool:
+    return "hooks.slack.com" in url or bool((url or "").startswith("slack://"))
+
+
+def _send_smtp_sync(*, to: str, subject: str, body: str) -> bool:
+    settings = get_settings()
+    if not settings.smtp_host:
+        logger.info("email alert (no SMTP): to=%s subject=%s body=%s", to, subject, body)
+        return True
+    msg = EmailMessage()
+    msg["Subject"] = subject
+    msg["From"] = settings.smtp_from or settings.smtp_user or "fleetkit@localhost"
+    msg["To"] = to
+    msg.set_content(body)
+    if settings.smtp_tls:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
+            smtp.starttls()
+            if settings.smtp_user:
+                smtp.login(settings.smtp_user, settings.smtp_password)
+            smtp.send_message(msg)
+    else:
+        with smtplib.SMTP(settings.smtp_host, settings.smtp_port, timeout=15) as smtp:
+            if settings.smtp_user:
+                smtp.login(settings.smtp_user, settings.smtp_password)
+            smtp.send_message(msg)
+    return True
+
+
 async def _deliver(channel: NotificationChannel, message: str, payload: dict) -> bool:
     try:
         if channel.kind == ChannelKind.webhook:
-            url = channel.config.get("url")
+            url = channel.config.get("url") or channel.config.get("webhook_url")
             if not url:
                 return False
+            body: dict
+            if _is_slack_url(str(url)) or channel.config.get("format") == "slack":
+                body = {"text": message, "blocks": [{"type": "section", "text": {"type": "mrkdwn", "text": message}}]}
+            else:
+                body = {"message": message, "payload": payload}
             async with httpx.AsyncClient(timeout=10) as client:
-                resp = await client.post(url, json={"message": message, "payload": payload})
+                resp = await client.post(url, json=body)
                 return resp.status_code < 300
         if channel.kind == ChannelKind.telegram:
             token = channel.config.get("bot_token")
@@ -109,9 +146,15 @@ async def _deliver(channel: NotificationChannel, message: str, payload: dict) ->
                 )
                 return resp.status_code < 300
         if channel.kind == ChannelKind.email:
-            # placeholder: log only; wire SMTP later
-            logger.info("email alert to %s: %s", channel.config.get("to"), message)
-            return True
+            to = channel.config.get("to") or channel.config.get("email")
+            if not to:
+                return False
+            return await asyncio.to_thread(
+                _send_smtp_sync,
+                to=str(to),
+                subject=f"FleetKit alert: {payload.get('metric', 'alert')}",
+                body=message,
+            )
     except Exception:
         logger.exception("alert delivery failed channel=%s", channel.id)
     return False

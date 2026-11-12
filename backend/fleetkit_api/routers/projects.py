@@ -7,6 +7,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_current_user, get_project_for_user
 from fleetkit_api.models import ApiKey, Project, User, _api_key
+from fleetkit_api.models_ext import ProjectMember
 from fleetkit_api.schemas import ApiKeyCreate, ApiKeyOut, ProjectCreate, ProjectOut
 from fleetkit_api.security import hash_api_key
 
@@ -18,8 +19,11 @@ async def list_projects(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> list[Project]:
+    member_ids = select(ProjectMember.project_id).where(ProjectMember.user_id == user.id)
     result = await db.execute(
-        select(Project).where(Project.owner_id == user.id).order_by(Project.created_at.desc())
+        select(Project)
+        .where((Project.owner_id == user.id) | (Project.id.in_(member_ids)))
+        .order_by(Project.created_at.desc())
     )
     return list(result.scalars().all())
 
@@ -40,6 +44,8 @@ async def create_project(
         description=body.description,
     )
     db.add(project)
+    await db.flush()
+    db.add(ProjectMember(project_id=project.id, user_id=user.id, role="owner"))
     await db.commit()
     await db.refresh(project)
     return project

@@ -249,10 +249,15 @@ class EnvVarOut(BaseModel):
 class MemberOut(BaseModel):
     id: str
     user_id: str
+    email: str | None = None
     role: str
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class MemberRoleUpdate(BaseModel):
+    role: str
 
 
 class InviteCreate(BaseModel):
@@ -262,10 +267,12 @@ class InviteCreate(BaseModel):
 
 class InviteOut(BaseModel):
     id: str
+    project_id: str | None = None
     email: str
     role: str
     token: str
     accepted: bool
+    expires_at: datetime | None = None
     created_at: datetime
 
     model_config = {"from_attributes": True}

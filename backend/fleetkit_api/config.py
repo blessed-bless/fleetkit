@@ -24,6 +24,12 @@ class Settings(BaseSettings):
     worker_stale_seconds: int = 90
     job_default_timeout_seconds: int = 300
     project_name: str = Field(default="FleetKit")
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_tls: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:
