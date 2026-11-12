@@ -27,6 +27,8 @@ export function JobsPage() {
   const [jobName, setJobName] = useState("ping");
   const [jobTags, setJobTags] = useState("");
   const [batchCount, setBatchCount] = useState(1);
+  const [dependsOn, setDependsOn] = useState("");
+  const [enqueuePriority, setEnqueuePriority] = useState("");
   const [chainNames, setChainNames] = useState("fetch,transform,publish");
   const [priority, setPriority] = useState(50);
   const [msg, setMsg] = useState("");
@@ -111,10 +113,13 @@ export function JobsPage() {
         .filter(Boolean);
       const n = Math.max(1, Math.min(100, Number(batchCount) || 1));
       if (n === 1) {
+        const pri = enqueuePriority.trim() === "" ? undefined : Number(enqueuePriority);
         await api.createJob(projectId, appId, {
           name: jobName,
           payload: { source: "dashboard" },
           tags,
+          priority: Number.isFinite(pri) ? pri : undefined,
+          depends_on_job_id: dependsOn.trim() || undefined,
         });
         setMsg(t("jobs.queuedMsg"));
       } else {
@@ -254,6 +259,25 @@ export function JobsPage() {
             max={100}
             value={batchCount}
             onChange={(e) => setBatchCount(Number(e.target.value))}
+          />
+        </div>
+        <div className="field">
+          <label>{t("jobs.enqueuePriority")}</label>
+          <input
+            type="number"
+            min={0}
+            max={100}
+            value={enqueuePriority}
+            onChange={(e) => setEnqueuePriority(e.target.value)}
+            placeholder="50"
+          />
+        </div>
+        <div className="field">
+          <label>{t("jobs.dependsOn")}</label>
+          <input
+            value={dependsOn}
+            onChange={(e) => setDependsOn(e.target.value)}
+            placeholder="parent job id"
           />
         </div>
         <button className="btn" type="submit" disabled={!appId}>

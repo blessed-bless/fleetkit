@@ -334,7 +334,42 @@ def alerts(project_id: str) -> None:
 @app.command()
 def metrics(project_id: str) -> None:
     data = _client().snapshot_metrics(project_id)
-    console.print_json(data=data)
+    outcomes = _client().metric_outcomes(project_id)
+    console.print_json(data={"snapshot": data, "outcomes_24h": outcomes})
+
+
+@app.command()
+def members(project_id: str) -> None:
+    rows = _client().members(project_id)
+    table = Table(title="Members")
+    table.add_column("Email")
+    table.add_column("Role")
+    table.add_column("User")
+    for row in rows:
+        table.add_row(row.get("email") or "", row.get("role") or "", row.get("user_id") or "")
+    console.print(table)
+
+
+@app.command()
+def invite(
+    project_id: str,
+    email: str,
+    role: str = typer.Option("viewer", help="viewer|operator|admin"),
+) -> None:
+    data = _client().create_invite(project_id, email, role=role)
+    console.print(f"invite token -> {data.get('token')}")
+
+
+@app.command("accept-invite")
+def accept_invite(token: str) -> None:
+    data = _client().accept_invite(token)
+    console.print(f"accepted -> role={data.get('role')} user={data.get('user_id')}")
+
+
+@app.command("delete-secret")
+def delete_secret(project_id: str, name: str) -> None:
+    _client().delete_secret(project_id, name)
+    console.print(f"deleted secret {name}")
 
 
 if __name__ == "__main__":

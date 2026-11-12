@@ -91,19 +91,22 @@ class FleetKit:
         tags: list[str] | None = None,
         max_attempts: int = 3,
         timeout_seconds: int = 300,
+        priority: int | None = None,
+        depends_on_job_id: str | None = None,
     ) -> dict[str, Any]:
-        return self._request(
-            "POST",
-            f"/api/v1/agent/apps/{app_id}/jobs",
-            json={
-                "name": name,
-                "payload": payload or {},
-                "queue": queue,
-                "tags": tags or [],
-                "max_attempts": max_attempts,
-                "timeout_seconds": timeout_seconds,
-            },
-        )
+        body: dict[str, Any] = {
+            "name": name,
+            "payload": payload or {},
+            "queue": queue,
+            "tags": tags or [],
+            "max_attempts": max_attempts,
+            "timeout_seconds": timeout_seconds,
+        }
+        if priority is not None:
+            body["priority"] = priority
+        if depends_on_job_id is not None:
+            body["depends_on_job_id"] = depends_on_job_id
+        return self._request("POST", f"/api/v1/agent/apps/{app_id}/jobs", json=body)
 
     def claim(self, worker_id: str, queues: list[str] | None = None) -> dict[str, Any] | None:
         params = [("queue", q) for q in (queues or [])]

@@ -35,11 +35,11 @@ from fleetkit_api.schemas_ext import (
     RetentionUpdate,
     SearchOut,
 )
-
-ALLOWED_ROLES = {"viewer", "operator", "admin"}
 from fleetkit_api.services.healthchecks import run_health_check
 from fleetkit_api.services.retention import apply_retention, ensure_default_policies
 from fleetkit_api.services.search import search_project
+
+ALLOWED_ROLES = {"viewer", "operator", "admin"}
 
 router = APIRouter(tags=["ops"])
 

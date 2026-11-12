@@ -240,3 +240,33 @@ class CliClient:
         resp = self._http.post(f"/api/v1/projects/{project_id}/metrics/snapshot")
         resp.raise_for_status()
         return resp.json()
+
+    def metric_outcomes(self, project_id: str, hours: int = 24) -> dict[str, float]:
+        resp = self._http.get(
+            f"/api/v1/projects/{project_id}/metrics/outcomes",
+            params={"hours": hours},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def members(self, project_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/members")
+        resp.raise_for_status()
+        return resp.json()
+
+    def create_invite(self, project_id: str, email: str, role: str = "viewer") -> dict[str, Any]:
+        resp = self._http.post(
+            f"/api/v1/projects/{project_id}/invites",
+            json={"email": email, "role": role},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def accept_invite(self, token: str) -> dict[str, Any]:
+        resp = self._http.post(f"/api/v1/invites/{token}/accept")
+        resp.raise_for_status()
+        return resp.json()
+
+    def delete_secret(self, project_id: str, name: str) -> None:
+        resp = self._http.delete(f"/api/v1/projects/{project_id}/secrets/{name}")
+        resp.raise_for_status()
