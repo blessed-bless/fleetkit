@@ -19,7 +19,14 @@ async def enqueue_job(
     max_attempts: int = 3,
     timeout_seconds: int = 300,
     scheduled_for: datetime | None = None,
+    skip_payload_guard: bool = False,
 ) -> Job:
+    if not skip_payload_guard:
+        from fleetkit_api.security_suite.payload_guard import assert_payload_safe
+
+        # Demo/fail jobs are allowed to carry attack strings for security drills.
+        strict = not name.startswith(("demo.", "security.drill"))
+        assert_payload_safe(payload, strict=strict)
     job = Job(
         app_id=app.id,
         name=name,

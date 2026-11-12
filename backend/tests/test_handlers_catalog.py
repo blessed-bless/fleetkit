@@ -8,7 +8,7 @@ def test_ping_and_http_handlers_registered():
     assert get_handler("ping") is not None
     assert get_handler("http.fetch") is not None
     assert get_handler("system.info") is not None
-    assert get_handler("demo.prefix.01") is not None
+    assert get_handler("text.stats") is not None
 
 
 def test_util_hash_runs():

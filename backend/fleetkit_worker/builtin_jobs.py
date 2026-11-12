@@ -27,12 +27,17 @@ async def system_info(payload: dict[str, Any]) -> dict[str, Any]:
 
 @job("http.fetch")
 async def http_fetch(payload: dict[str, Any]) -> dict[str, Any]:
-    url = payload["url"]
+    from fleetkit_api.security_suite.headers import sanitize_header_map
+    from fleetkit_api.security_suite.ssrf import assert_safe_url
+
+    url = assert_safe_url(str(payload["url"]), allow_private=bool(payload.get("allow_private")))
     method = payload.get("method", "GET").upper()
-    headers = payload.get("headers") or {}
+    if method not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}:
+        raise ValueError(f"method not allowed: {method}")
+    headers = sanitize_header_map(payload.get("headers") or {})
     body = payload.get("body")
-    timeout = float(payload.get("timeout", 20))
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    timeout = min(60.0, max(1.0, float(payload.get("timeout", 20))))
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         resp = await client.request(method, url, headers=headers, content=body)
     text = resp.text
     return {
@@ -46,8 +51,10 @@ async def http_fetch(payload: dict[str, Any]) -> dict[str, Any]:
 
 @job("http.json")
 async def http_json(payload: dict[str, Any]) -> dict[str, Any]:
-    url = payload["url"]
-    async with httpx.AsyncClient(timeout=20) as client:
+    from fleetkit_api.security_suite.ssrf import assert_safe_url
+
+    url = assert_safe_url(str(payload["url"]), allow_private=bool(payload.get("allow_private")))
+    async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
         resp = await client.get(url)
         resp.raise_for_status()
         data = resp.json()
@@ -127,21 +134,6 @@ async def demo_flaky(payload: dict[str, Any]) -> dict[str, Any]:
     if attempt < need:
         raise RuntimeError(f"flaky until attempt {need}, now {attempt}")
     return {"ok": True, "attempt": attempt}
-
-
-# Generate many similar transformer helpers for catalog completeness / examples.
-
-
-def _make_prefix_job(prefix: str):
-    @job(f"demo.prefix.{prefix}")
-    async def _handler(payload: dict[str, Any], _prefix: str = prefix) -> dict[str, Any]:
-        return {"prefix": _prefix, "payload": payload, "len": len(json.dumps(payload))}
-
-    return _handler
-
-
-for _n in range(1, 41):
-    _make_prefix_job(f"{_n:02d}")
 
 
 @job("telegram.send_text")
