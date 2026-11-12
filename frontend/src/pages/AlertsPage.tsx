@@ -1,22 +1,32 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import { EmptyState } from "../components/EmptyState";
 import { useI18n } from "../i18n";
 import { ProjectPicker, useProject } from "../project";
 
 export function AlertsPage() {
   const { t } = useI18n();
   const { projectId } = useProject();
-  const [rules, setRules] = useState<any[]>([]);
-  const [fires, setFires] = useState<any[]>([]);
+  const [rules, setRules] = useState<Awaited<ReturnType<typeof api.alertRules>>>([]);
+  const [fires, setFires] = useState<Awaited<ReturnType<typeof api.alertFires>>>([]);
+  const [channels, setChannels] = useState<Awaited<ReturnType<typeof api.channels>>>([]);
   const [name, setName] = useState("Queue too deep");
   const [expression, setExpression] = useState("queue.depth>20");
+  const [channelName, setChannelName] = useState("ops-webhook");
+  const [channelKind, setChannelKind] = useState("webhook");
+  const [channelTarget, setChannelTarget] = useState("https://example.com/hooks/fleetkit");
   const [msg, setMsg] = useState("");
 
   async function reload(id: string) {
-    const [r, f] = await Promise.all([api.alertRules(id), api.alertFires(id)]);
+    const [r, f, c] = await Promise.all([
+      api.alertRules(id),
+      api.alertFires(id),
+      api.channels(id),
+    ]);
     setRules(r);
     setFires(f);
+    setChannels(c);
   }
 
   useEffect(() => {
@@ -27,6 +37,19 @@ export function AlertsPage() {
     e.preventDefault();
     await api.createAlertRule(projectId, { name, expression, severity: "warning" });
     setMsg(t("alerts.added"));
+    await reload(projectId);
+  }
+
+  async function createChannel(e: FormEvent) {
+    e.preventDefault();
+    const config =
+      channelKind === "telegram"
+        ? { chat_id: channelTarget }
+        : channelKind === "email"
+          ? { to: channelTarget }
+          : { url: channelTarget };
+    await api.createChannel(projectId, { name: channelName, kind: channelKind, config });
+    setMsg(t("alerts.channelAdded"));
     await reload(projectId);
   }
 
@@ -62,6 +85,62 @@ export function AlertsPage() {
         </button>
       </form>
       {msg ? <p className="muted">{msg}</p> : null}
+
+      <section className="panel stack-gap">
+        <h2 style={{ margin: 0 }}>{t("alerts.channels")}</h2>
+        <form className="row" onSubmit={createChannel}>
+          <div className="field">
+            <label>{t("alerts.channelName")}</label>
+            <input value={channelName} onChange={(e) => setChannelName(e.target.value)} required />
+          </div>
+          <div className="field">
+            <label>{t("alerts.channelKind")}</label>
+            <select value={channelKind} onChange={(e) => setChannelKind(e.target.value)}>
+              <option value="webhook">webhook</option>
+              <option value="telegram">telegram</option>
+              <option value="email">email</option>
+            </select>
+          </div>
+          <div className="field" style={{ minWidth: 260 }}>
+            <label>{t("alerts.channelTarget")}</label>
+            <input
+              value={channelTarget}
+              onChange={(e) => setChannelTarget(e.target.value)}
+              required
+            />
+          </div>
+          <button className="btn" type="submit">
+            {t("alerts.addChannel")}
+          </button>
+        </form>
+        {channels.length === 0 ? (
+          <EmptyState title={t("alerts.channelsEmpty")} hint={t("alerts.channelsHint")} />
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("alerts.channelName")}</th>
+                <th>{t("alerts.channelKind")}</th>
+                <th>{t("apps.status")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {channels.map((c) => (
+                <tr key={c.id}>
+                  <td>{c.name}</td>
+                  <td>{c.kind}</td>
+                  <td>
+                    <span className={`badge ${c.is_enabled ? "ok" : "warn"}`}>
+                      {c.is_enabled ? t("schedules.on") : t("schedules.off")}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
       <section className="panel">
         <h2>{t("alerts.rules")}</h2>
         <table className="table">

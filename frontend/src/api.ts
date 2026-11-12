@@ -281,6 +281,18 @@ export const api = {
     request<{ fired: number }>(`/api/v1/projects/${projectId}/alerts/evaluate`, {
       method: "POST",
     }),
+  channels: (projectId: string) =>
+    request<
+      Array<{ id: string; name: string; kind: string; is_enabled: boolean; config: Record<string, unknown> }>
+    >(`/api/v1/projects/${projectId}/channels`),
+  createChannel: (
+    projectId: string,
+    body: { name: string; kind: string; config?: Record<string, unknown> },
+  ) =>
+    request(`/api/v1/projects/${projectId}/channels`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   deadLetters: (projectId: string) =>
     request<
       Array<{ id: string; job_name: string; error: string; attempts: number; requeued: boolean }>
