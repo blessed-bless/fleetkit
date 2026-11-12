@@ -64,6 +64,9 @@ class FleetWorker:
         import fleetkit_worker.net_jobs  # noqa: F401
         import fleetkit_worker.text_jobs  # noqa: F401
         from fleetkit_worker.handlers import get_handler
+        from fleetkit_worker.plugins.load_all import load_plugins
+
+        load_plugins()
 
         name = job.get("name", "")
         payload = job.get("payload") or {}

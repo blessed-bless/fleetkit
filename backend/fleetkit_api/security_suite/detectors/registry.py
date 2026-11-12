@@ -1,0 +1,1321 @@
+"""Registry of unique detectors."""
+
+from __future__ import annotations
+
+from fleetkit_api.security_suite.detectors import det_sqli_0001
+from fleetkit_api.security_suite.detectors import det_xss_0002
+from fleetkit_api.security_suite.detectors import det_cmdi_0003
+from fleetkit_api.security_suite.detectors import det_ldap_0004
+from fleetkit_api.security_suite.detectors import det_header_inject_0005
+from fleetkit_api.security_suite.detectors import det_template_inject_0006
+from fleetkit_api.security_suite.detectors import det_nosqli_0007
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0008
+from fleetkit_api.security_suite.detectors import det_log4shell_0009
+from fleetkit_api.security_suite.detectors import det_path_traversal_0010
+from fleetkit_api.security_suite.detectors import det_sqli_0011
+from fleetkit_api.security_suite.detectors import det_xss_0012
+from fleetkit_api.security_suite.detectors import det_cmdi_0013
+from fleetkit_api.security_suite.detectors import det_ldap_0014
+from fleetkit_api.security_suite.detectors import det_header_inject_0015
+from fleetkit_api.security_suite.detectors import det_template_inject_0016
+from fleetkit_api.security_suite.detectors import det_nosqli_0017
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0018
+from fleetkit_api.security_suite.detectors import det_log4shell_0019
+from fleetkit_api.security_suite.detectors import det_path_traversal_0020
+from fleetkit_api.security_suite.detectors import det_sqli_0021
+from fleetkit_api.security_suite.detectors import det_xss_0022
+from fleetkit_api.security_suite.detectors import det_cmdi_0023
+from fleetkit_api.security_suite.detectors import det_ldap_0024
+from fleetkit_api.security_suite.detectors import det_header_inject_0025
+from fleetkit_api.security_suite.detectors import det_template_inject_0026
+from fleetkit_api.security_suite.detectors import det_nosqli_0027
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0028
+from fleetkit_api.security_suite.detectors import det_log4shell_0029
+from fleetkit_api.security_suite.detectors import det_path_traversal_0030
+from fleetkit_api.security_suite.detectors import det_sqli_0031
+from fleetkit_api.security_suite.detectors import det_xss_0032
+from fleetkit_api.security_suite.detectors import det_cmdi_0033
+from fleetkit_api.security_suite.detectors import det_ldap_0034
+from fleetkit_api.security_suite.detectors import det_header_inject_0035
+from fleetkit_api.security_suite.detectors import det_template_inject_0036
+from fleetkit_api.security_suite.detectors import det_nosqli_0037
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0038
+from fleetkit_api.security_suite.detectors import det_log4shell_0039
+from fleetkit_api.security_suite.detectors import det_path_traversal_0040
+from fleetkit_api.security_suite.detectors import det_sqli_0041
+from fleetkit_api.security_suite.detectors import det_xss_0042
+from fleetkit_api.security_suite.detectors import det_cmdi_0043
+from fleetkit_api.security_suite.detectors import det_ldap_0044
+from fleetkit_api.security_suite.detectors import det_header_inject_0045
+from fleetkit_api.security_suite.detectors import det_template_inject_0046
+from fleetkit_api.security_suite.detectors import det_nosqli_0047
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0048
+from fleetkit_api.security_suite.detectors import det_log4shell_0049
+from fleetkit_api.security_suite.detectors import det_path_traversal_0050
+from fleetkit_api.security_suite.detectors import det_sqli_0051
+from fleetkit_api.security_suite.detectors import det_xss_0052
+from fleetkit_api.security_suite.detectors import det_cmdi_0053
+from fleetkit_api.security_suite.detectors import det_ldap_0054
+from fleetkit_api.security_suite.detectors import det_header_inject_0055
+from fleetkit_api.security_suite.detectors import det_template_inject_0056
+from fleetkit_api.security_suite.detectors import det_nosqli_0057
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0058
+from fleetkit_api.security_suite.detectors import det_log4shell_0059
+from fleetkit_api.security_suite.detectors import det_path_traversal_0060
+from fleetkit_api.security_suite.detectors import det_sqli_0061
+from fleetkit_api.security_suite.detectors import det_xss_0062
+from fleetkit_api.security_suite.detectors import det_cmdi_0063
+from fleetkit_api.security_suite.detectors import det_ldap_0064
+from fleetkit_api.security_suite.detectors import det_header_inject_0065
+from fleetkit_api.security_suite.detectors import det_template_inject_0066
+from fleetkit_api.security_suite.detectors import det_nosqli_0067
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0068
+from fleetkit_api.security_suite.detectors import det_log4shell_0069
+from fleetkit_api.security_suite.detectors import det_path_traversal_0070
+from fleetkit_api.security_suite.detectors import det_sqli_0071
+from fleetkit_api.security_suite.detectors import det_xss_0072
+from fleetkit_api.security_suite.detectors import det_cmdi_0073
+from fleetkit_api.security_suite.detectors import det_ldap_0074
+from fleetkit_api.security_suite.detectors import det_header_inject_0075
+from fleetkit_api.security_suite.detectors import det_template_inject_0076
+from fleetkit_api.security_suite.detectors import det_nosqli_0077
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0078
+from fleetkit_api.security_suite.detectors import det_log4shell_0079
+from fleetkit_api.security_suite.detectors import det_path_traversal_0080
+from fleetkit_api.security_suite.detectors import det_sqli_0081
+from fleetkit_api.security_suite.detectors import det_xss_0082
+from fleetkit_api.security_suite.detectors import det_cmdi_0083
+from fleetkit_api.security_suite.detectors import det_ldap_0084
+from fleetkit_api.security_suite.detectors import det_header_inject_0085
+from fleetkit_api.security_suite.detectors import det_template_inject_0086
+from fleetkit_api.security_suite.detectors import det_nosqli_0087
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0088
+from fleetkit_api.security_suite.detectors import det_log4shell_0089
+from fleetkit_api.security_suite.detectors import det_path_traversal_0090
+from fleetkit_api.security_suite.detectors import det_sqli_0091
+from fleetkit_api.security_suite.detectors import det_xss_0092
+from fleetkit_api.security_suite.detectors import det_cmdi_0093
+from fleetkit_api.security_suite.detectors import det_ldap_0094
+from fleetkit_api.security_suite.detectors import det_header_inject_0095
+from fleetkit_api.security_suite.detectors import det_template_inject_0096
+from fleetkit_api.security_suite.detectors import det_nosqli_0097
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0098
+from fleetkit_api.security_suite.detectors import det_log4shell_0099
+from fleetkit_api.security_suite.detectors import det_path_traversal_0100
+from fleetkit_api.security_suite.detectors import det_sqli_0101
+from fleetkit_api.security_suite.detectors import det_xss_0102
+from fleetkit_api.security_suite.detectors import det_cmdi_0103
+from fleetkit_api.security_suite.detectors import det_ldap_0104
+from fleetkit_api.security_suite.detectors import det_header_inject_0105
+from fleetkit_api.security_suite.detectors import det_template_inject_0106
+from fleetkit_api.security_suite.detectors import det_nosqli_0107
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0108
+from fleetkit_api.security_suite.detectors import det_log4shell_0109
+from fleetkit_api.security_suite.detectors import det_path_traversal_0110
+from fleetkit_api.security_suite.detectors import det_sqli_0111
+from fleetkit_api.security_suite.detectors import det_xss_0112
+from fleetkit_api.security_suite.detectors import det_cmdi_0113
+from fleetkit_api.security_suite.detectors import det_ldap_0114
+from fleetkit_api.security_suite.detectors import det_header_inject_0115
+from fleetkit_api.security_suite.detectors import det_template_inject_0116
+from fleetkit_api.security_suite.detectors import det_nosqli_0117
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0118
+from fleetkit_api.security_suite.detectors import det_log4shell_0119
+from fleetkit_api.security_suite.detectors import det_path_traversal_0120
+from fleetkit_api.security_suite.detectors import det_sqli_0121
+from fleetkit_api.security_suite.detectors import det_xss_0122
+from fleetkit_api.security_suite.detectors import det_cmdi_0123
+from fleetkit_api.security_suite.detectors import det_ldap_0124
+from fleetkit_api.security_suite.detectors import det_header_inject_0125
+from fleetkit_api.security_suite.detectors import det_template_inject_0126
+from fleetkit_api.security_suite.detectors import det_nosqli_0127
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0128
+from fleetkit_api.security_suite.detectors import det_log4shell_0129
+from fleetkit_api.security_suite.detectors import det_path_traversal_0130
+from fleetkit_api.security_suite.detectors import det_sqli_0131
+from fleetkit_api.security_suite.detectors import det_xss_0132
+from fleetkit_api.security_suite.detectors import det_cmdi_0133
+from fleetkit_api.security_suite.detectors import det_ldap_0134
+from fleetkit_api.security_suite.detectors import det_header_inject_0135
+from fleetkit_api.security_suite.detectors import det_template_inject_0136
+from fleetkit_api.security_suite.detectors import det_nosqli_0137
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0138
+from fleetkit_api.security_suite.detectors import det_log4shell_0139
+from fleetkit_api.security_suite.detectors import det_path_traversal_0140
+from fleetkit_api.security_suite.detectors import det_sqli_0141
+from fleetkit_api.security_suite.detectors import det_xss_0142
+from fleetkit_api.security_suite.detectors import det_cmdi_0143
+from fleetkit_api.security_suite.detectors import det_ldap_0144
+from fleetkit_api.security_suite.detectors import det_header_inject_0145
+from fleetkit_api.security_suite.detectors import det_template_inject_0146
+from fleetkit_api.security_suite.detectors import det_nosqli_0147
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0148
+from fleetkit_api.security_suite.detectors import det_log4shell_0149
+from fleetkit_api.security_suite.detectors import det_path_traversal_0150
+from fleetkit_api.security_suite.detectors import det_sqli_0151
+from fleetkit_api.security_suite.detectors import det_xss_0152
+from fleetkit_api.security_suite.detectors import det_cmdi_0153
+from fleetkit_api.security_suite.detectors import det_ldap_0154
+from fleetkit_api.security_suite.detectors import det_header_inject_0155
+from fleetkit_api.security_suite.detectors import det_template_inject_0156
+from fleetkit_api.security_suite.detectors import det_nosqli_0157
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0158
+from fleetkit_api.security_suite.detectors import det_log4shell_0159
+from fleetkit_api.security_suite.detectors import det_path_traversal_0160
+from fleetkit_api.security_suite.detectors import det_sqli_0161
+from fleetkit_api.security_suite.detectors import det_xss_0162
+from fleetkit_api.security_suite.detectors import det_cmdi_0163
+from fleetkit_api.security_suite.detectors import det_ldap_0164
+from fleetkit_api.security_suite.detectors import det_header_inject_0165
+from fleetkit_api.security_suite.detectors import det_template_inject_0166
+from fleetkit_api.security_suite.detectors import det_nosqli_0167
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0168
+from fleetkit_api.security_suite.detectors import det_log4shell_0169
+from fleetkit_api.security_suite.detectors import det_path_traversal_0170
+from fleetkit_api.security_suite.detectors import det_sqli_0171
+from fleetkit_api.security_suite.detectors import det_xss_0172
+from fleetkit_api.security_suite.detectors import det_cmdi_0173
+from fleetkit_api.security_suite.detectors import det_ldap_0174
+from fleetkit_api.security_suite.detectors import det_header_inject_0175
+from fleetkit_api.security_suite.detectors import det_template_inject_0176
+from fleetkit_api.security_suite.detectors import det_nosqli_0177
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0178
+from fleetkit_api.security_suite.detectors import det_log4shell_0179
+from fleetkit_api.security_suite.detectors import det_path_traversal_0180
+from fleetkit_api.security_suite.detectors import det_sqli_0181
+from fleetkit_api.security_suite.detectors import det_xss_0182
+from fleetkit_api.security_suite.detectors import det_cmdi_0183
+from fleetkit_api.security_suite.detectors import det_ldap_0184
+from fleetkit_api.security_suite.detectors import det_header_inject_0185
+from fleetkit_api.security_suite.detectors import det_template_inject_0186
+from fleetkit_api.security_suite.detectors import det_nosqli_0187
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0188
+from fleetkit_api.security_suite.detectors import det_log4shell_0189
+from fleetkit_api.security_suite.detectors import det_path_traversal_0190
+from fleetkit_api.security_suite.detectors import det_sqli_0191
+from fleetkit_api.security_suite.detectors import det_xss_0192
+from fleetkit_api.security_suite.detectors import det_cmdi_0193
+from fleetkit_api.security_suite.detectors import det_ldap_0194
+from fleetkit_api.security_suite.detectors import det_header_inject_0195
+from fleetkit_api.security_suite.detectors import det_template_inject_0196
+from fleetkit_api.security_suite.detectors import det_nosqli_0197
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0198
+from fleetkit_api.security_suite.detectors import det_log4shell_0199
+from fleetkit_api.security_suite.detectors import det_path_traversal_0200
+from fleetkit_api.security_suite.detectors import det_sqli_0201
+from fleetkit_api.security_suite.detectors import det_xss_0202
+from fleetkit_api.security_suite.detectors import det_cmdi_0203
+from fleetkit_api.security_suite.detectors import det_ldap_0204
+from fleetkit_api.security_suite.detectors import det_header_inject_0205
+from fleetkit_api.security_suite.detectors import det_template_inject_0206
+from fleetkit_api.security_suite.detectors import det_nosqli_0207
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0208
+from fleetkit_api.security_suite.detectors import det_log4shell_0209
+from fleetkit_api.security_suite.detectors import det_path_traversal_0210
+from fleetkit_api.security_suite.detectors import det_sqli_0211
+from fleetkit_api.security_suite.detectors import det_xss_0212
+from fleetkit_api.security_suite.detectors import det_cmdi_0213
+from fleetkit_api.security_suite.detectors import det_ldap_0214
+from fleetkit_api.security_suite.detectors import det_header_inject_0215
+from fleetkit_api.security_suite.detectors import det_template_inject_0216
+from fleetkit_api.security_suite.detectors import det_nosqli_0217
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0218
+from fleetkit_api.security_suite.detectors import det_log4shell_0219
+from fleetkit_api.security_suite.detectors import det_path_traversal_0220
+from fleetkit_api.security_suite.detectors import det_sqli_0221
+from fleetkit_api.security_suite.detectors import det_xss_0222
+from fleetkit_api.security_suite.detectors import det_cmdi_0223
+from fleetkit_api.security_suite.detectors import det_ldap_0224
+from fleetkit_api.security_suite.detectors import det_header_inject_0225
+from fleetkit_api.security_suite.detectors import det_template_inject_0226
+from fleetkit_api.security_suite.detectors import det_nosqli_0227
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0228
+from fleetkit_api.security_suite.detectors import det_log4shell_0229
+from fleetkit_api.security_suite.detectors import det_path_traversal_0230
+from fleetkit_api.security_suite.detectors import det_sqli_0231
+from fleetkit_api.security_suite.detectors import det_xss_0232
+from fleetkit_api.security_suite.detectors import det_cmdi_0233
+from fleetkit_api.security_suite.detectors import det_ldap_0234
+from fleetkit_api.security_suite.detectors import det_header_inject_0235
+from fleetkit_api.security_suite.detectors import det_template_inject_0236
+from fleetkit_api.security_suite.detectors import det_nosqli_0237
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0238
+from fleetkit_api.security_suite.detectors import det_log4shell_0239
+from fleetkit_api.security_suite.detectors import det_path_traversal_0240
+from fleetkit_api.security_suite.detectors import det_sqli_0241
+from fleetkit_api.security_suite.detectors import det_xss_0242
+from fleetkit_api.security_suite.detectors import det_cmdi_0243
+from fleetkit_api.security_suite.detectors import det_ldap_0244
+from fleetkit_api.security_suite.detectors import det_header_inject_0245
+from fleetkit_api.security_suite.detectors import det_template_inject_0246
+from fleetkit_api.security_suite.detectors import det_nosqli_0247
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0248
+from fleetkit_api.security_suite.detectors import det_log4shell_0249
+from fleetkit_api.security_suite.detectors import det_path_traversal_0250
+from fleetkit_api.security_suite.detectors import det_sqli_0251
+from fleetkit_api.security_suite.detectors import det_xss_0252
+from fleetkit_api.security_suite.detectors import det_cmdi_0253
+from fleetkit_api.security_suite.detectors import det_ldap_0254
+from fleetkit_api.security_suite.detectors import det_header_inject_0255
+from fleetkit_api.security_suite.detectors import det_template_inject_0256
+from fleetkit_api.security_suite.detectors import det_nosqli_0257
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0258
+from fleetkit_api.security_suite.detectors import det_log4shell_0259
+from fleetkit_api.security_suite.detectors import det_path_traversal_0260
+from fleetkit_api.security_suite.detectors import det_sqli_0261
+from fleetkit_api.security_suite.detectors import det_xss_0262
+from fleetkit_api.security_suite.detectors import det_cmdi_0263
+from fleetkit_api.security_suite.detectors import det_ldap_0264
+from fleetkit_api.security_suite.detectors import det_header_inject_0265
+from fleetkit_api.security_suite.detectors import det_template_inject_0266
+from fleetkit_api.security_suite.detectors import det_nosqli_0267
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0268
+from fleetkit_api.security_suite.detectors import det_log4shell_0269
+from fleetkit_api.security_suite.detectors import det_path_traversal_0270
+from fleetkit_api.security_suite.detectors import det_sqli_0271
+from fleetkit_api.security_suite.detectors import det_xss_0272
+from fleetkit_api.security_suite.detectors import det_cmdi_0273
+from fleetkit_api.security_suite.detectors import det_ldap_0274
+from fleetkit_api.security_suite.detectors import det_header_inject_0275
+from fleetkit_api.security_suite.detectors import det_template_inject_0276
+from fleetkit_api.security_suite.detectors import det_nosqli_0277
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0278
+from fleetkit_api.security_suite.detectors import det_log4shell_0279
+from fleetkit_api.security_suite.detectors import det_path_traversal_0280
+from fleetkit_api.security_suite.detectors import det_sqli_0281
+from fleetkit_api.security_suite.detectors import det_xss_0282
+from fleetkit_api.security_suite.detectors import det_cmdi_0283
+from fleetkit_api.security_suite.detectors import det_ldap_0284
+from fleetkit_api.security_suite.detectors import det_header_inject_0285
+from fleetkit_api.security_suite.detectors import det_template_inject_0286
+from fleetkit_api.security_suite.detectors import det_nosqli_0287
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0288
+from fleetkit_api.security_suite.detectors import det_log4shell_0289
+from fleetkit_api.security_suite.detectors import det_path_traversal_0290
+from fleetkit_api.security_suite.detectors import det_sqli_0291
+from fleetkit_api.security_suite.detectors import det_xss_0292
+from fleetkit_api.security_suite.detectors import det_cmdi_0293
+from fleetkit_api.security_suite.detectors import det_ldap_0294
+from fleetkit_api.security_suite.detectors import det_header_inject_0295
+from fleetkit_api.security_suite.detectors import det_template_inject_0296
+from fleetkit_api.security_suite.detectors import det_nosqli_0297
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0298
+from fleetkit_api.security_suite.detectors import det_log4shell_0299
+from fleetkit_api.security_suite.detectors import det_path_traversal_0300
+from fleetkit_api.security_suite.detectors import det_sqli_0301
+from fleetkit_api.security_suite.detectors import det_xss_0302
+from fleetkit_api.security_suite.detectors import det_cmdi_0303
+from fleetkit_api.security_suite.detectors import det_ldap_0304
+from fleetkit_api.security_suite.detectors import det_header_inject_0305
+from fleetkit_api.security_suite.detectors import det_template_inject_0306
+from fleetkit_api.security_suite.detectors import det_nosqli_0307
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0308
+from fleetkit_api.security_suite.detectors import det_log4shell_0309
+from fleetkit_api.security_suite.detectors import det_path_traversal_0310
+from fleetkit_api.security_suite.detectors import det_sqli_0311
+from fleetkit_api.security_suite.detectors import det_xss_0312
+from fleetkit_api.security_suite.detectors import det_cmdi_0313
+from fleetkit_api.security_suite.detectors import det_ldap_0314
+from fleetkit_api.security_suite.detectors import det_header_inject_0315
+from fleetkit_api.security_suite.detectors import det_template_inject_0316
+from fleetkit_api.security_suite.detectors import det_nosqli_0317
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0318
+from fleetkit_api.security_suite.detectors import det_log4shell_0319
+from fleetkit_api.security_suite.detectors import det_path_traversal_0320
+from fleetkit_api.security_suite.detectors import det_sqli_0321
+from fleetkit_api.security_suite.detectors import det_xss_0322
+from fleetkit_api.security_suite.detectors import det_cmdi_0323
+from fleetkit_api.security_suite.detectors import det_ldap_0324
+from fleetkit_api.security_suite.detectors import det_header_inject_0325
+from fleetkit_api.security_suite.detectors import det_template_inject_0326
+from fleetkit_api.security_suite.detectors import det_nosqli_0327
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0328
+from fleetkit_api.security_suite.detectors import det_log4shell_0329
+from fleetkit_api.security_suite.detectors import det_path_traversal_0330
+from fleetkit_api.security_suite.detectors import det_sqli_0331
+from fleetkit_api.security_suite.detectors import det_xss_0332
+from fleetkit_api.security_suite.detectors import det_cmdi_0333
+from fleetkit_api.security_suite.detectors import det_ldap_0334
+from fleetkit_api.security_suite.detectors import det_header_inject_0335
+from fleetkit_api.security_suite.detectors import det_template_inject_0336
+from fleetkit_api.security_suite.detectors import det_nosqli_0337
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0338
+from fleetkit_api.security_suite.detectors import det_log4shell_0339
+from fleetkit_api.security_suite.detectors import det_path_traversal_0340
+from fleetkit_api.security_suite.detectors import det_sqli_0341
+from fleetkit_api.security_suite.detectors import det_xss_0342
+from fleetkit_api.security_suite.detectors import det_cmdi_0343
+from fleetkit_api.security_suite.detectors import det_ldap_0344
+from fleetkit_api.security_suite.detectors import det_header_inject_0345
+from fleetkit_api.security_suite.detectors import det_template_inject_0346
+from fleetkit_api.security_suite.detectors import det_nosqli_0347
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0348
+from fleetkit_api.security_suite.detectors import det_log4shell_0349
+from fleetkit_api.security_suite.detectors import det_path_traversal_0350
+from fleetkit_api.security_suite.detectors import det_sqli_0351
+from fleetkit_api.security_suite.detectors import det_xss_0352
+from fleetkit_api.security_suite.detectors import det_cmdi_0353
+from fleetkit_api.security_suite.detectors import det_ldap_0354
+from fleetkit_api.security_suite.detectors import det_header_inject_0355
+from fleetkit_api.security_suite.detectors import det_template_inject_0356
+from fleetkit_api.security_suite.detectors import det_nosqli_0357
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0358
+from fleetkit_api.security_suite.detectors import det_log4shell_0359
+from fleetkit_api.security_suite.detectors import det_path_traversal_0360
+from fleetkit_api.security_suite.detectors import det_sqli_0361
+from fleetkit_api.security_suite.detectors import det_xss_0362
+from fleetkit_api.security_suite.detectors import det_cmdi_0363
+from fleetkit_api.security_suite.detectors import det_ldap_0364
+from fleetkit_api.security_suite.detectors import det_header_inject_0365
+from fleetkit_api.security_suite.detectors import det_template_inject_0366
+from fleetkit_api.security_suite.detectors import det_nosqli_0367
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0368
+from fleetkit_api.security_suite.detectors import det_log4shell_0369
+from fleetkit_api.security_suite.detectors import det_path_traversal_0370
+from fleetkit_api.security_suite.detectors import det_sqli_0371
+from fleetkit_api.security_suite.detectors import det_xss_0372
+from fleetkit_api.security_suite.detectors import det_cmdi_0373
+from fleetkit_api.security_suite.detectors import det_ldap_0374
+from fleetkit_api.security_suite.detectors import det_header_inject_0375
+from fleetkit_api.security_suite.detectors import det_template_inject_0376
+from fleetkit_api.security_suite.detectors import det_nosqli_0377
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0378
+from fleetkit_api.security_suite.detectors import det_log4shell_0379
+from fleetkit_api.security_suite.detectors import det_path_traversal_0380
+from fleetkit_api.security_suite.detectors import det_sqli_0381
+from fleetkit_api.security_suite.detectors import det_xss_0382
+from fleetkit_api.security_suite.detectors import det_cmdi_0383
+from fleetkit_api.security_suite.detectors import det_ldap_0384
+from fleetkit_api.security_suite.detectors import det_header_inject_0385
+from fleetkit_api.security_suite.detectors import det_template_inject_0386
+from fleetkit_api.security_suite.detectors import det_nosqli_0387
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0388
+from fleetkit_api.security_suite.detectors import det_log4shell_0389
+from fleetkit_api.security_suite.detectors import det_path_traversal_0390
+from fleetkit_api.security_suite.detectors import det_sqli_0391
+from fleetkit_api.security_suite.detectors import det_xss_0392
+from fleetkit_api.security_suite.detectors import det_cmdi_0393
+from fleetkit_api.security_suite.detectors import det_ldap_0394
+from fleetkit_api.security_suite.detectors import det_header_inject_0395
+from fleetkit_api.security_suite.detectors import det_template_inject_0396
+from fleetkit_api.security_suite.detectors import det_nosqli_0397
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0398
+from fleetkit_api.security_suite.detectors import det_log4shell_0399
+from fleetkit_api.security_suite.detectors import det_path_traversal_0400
+from fleetkit_api.security_suite.detectors import det_sqli_0401
+from fleetkit_api.security_suite.detectors import det_xss_0402
+from fleetkit_api.security_suite.detectors import det_cmdi_0403
+from fleetkit_api.security_suite.detectors import det_ldap_0404
+from fleetkit_api.security_suite.detectors import det_header_inject_0405
+from fleetkit_api.security_suite.detectors import det_template_inject_0406
+from fleetkit_api.security_suite.detectors import det_nosqli_0407
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0408
+from fleetkit_api.security_suite.detectors import det_log4shell_0409
+from fleetkit_api.security_suite.detectors import det_path_traversal_0410
+from fleetkit_api.security_suite.detectors import det_sqli_0411
+from fleetkit_api.security_suite.detectors import det_xss_0412
+from fleetkit_api.security_suite.detectors import det_cmdi_0413
+from fleetkit_api.security_suite.detectors import det_ldap_0414
+from fleetkit_api.security_suite.detectors import det_header_inject_0415
+from fleetkit_api.security_suite.detectors import det_template_inject_0416
+from fleetkit_api.security_suite.detectors import det_nosqli_0417
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0418
+from fleetkit_api.security_suite.detectors import det_log4shell_0419
+from fleetkit_api.security_suite.detectors import det_path_traversal_0420
+from fleetkit_api.security_suite.detectors import det_sqli_0421
+from fleetkit_api.security_suite.detectors import det_xss_0422
+from fleetkit_api.security_suite.detectors import det_cmdi_0423
+from fleetkit_api.security_suite.detectors import det_ldap_0424
+from fleetkit_api.security_suite.detectors import det_header_inject_0425
+from fleetkit_api.security_suite.detectors import det_template_inject_0426
+from fleetkit_api.security_suite.detectors import det_nosqli_0427
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0428
+from fleetkit_api.security_suite.detectors import det_log4shell_0429
+from fleetkit_api.security_suite.detectors import det_path_traversal_0430
+from fleetkit_api.security_suite.detectors import det_sqli_0431
+from fleetkit_api.security_suite.detectors import det_xss_0432
+from fleetkit_api.security_suite.detectors import det_cmdi_0433
+from fleetkit_api.security_suite.detectors import det_ldap_0434
+from fleetkit_api.security_suite.detectors import det_header_inject_0435
+from fleetkit_api.security_suite.detectors import det_template_inject_0436
+from fleetkit_api.security_suite.detectors import det_nosqli_0437
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0438
+from fleetkit_api.security_suite.detectors import det_log4shell_0439
+from fleetkit_api.security_suite.detectors import det_path_traversal_0440
+from fleetkit_api.security_suite.detectors import det_sqli_0441
+from fleetkit_api.security_suite.detectors import det_xss_0442
+from fleetkit_api.security_suite.detectors import det_cmdi_0443
+from fleetkit_api.security_suite.detectors import det_ldap_0444
+from fleetkit_api.security_suite.detectors import det_header_inject_0445
+from fleetkit_api.security_suite.detectors import det_template_inject_0446
+from fleetkit_api.security_suite.detectors import det_nosqli_0447
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0448
+from fleetkit_api.security_suite.detectors import det_log4shell_0449
+from fleetkit_api.security_suite.detectors import det_path_traversal_0450
+from fleetkit_api.security_suite.detectors import det_sqli_0451
+from fleetkit_api.security_suite.detectors import det_xss_0452
+from fleetkit_api.security_suite.detectors import det_cmdi_0453
+from fleetkit_api.security_suite.detectors import det_ldap_0454
+from fleetkit_api.security_suite.detectors import det_header_inject_0455
+from fleetkit_api.security_suite.detectors import det_template_inject_0456
+from fleetkit_api.security_suite.detectors import det_nosqli_0457
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0458
+from fleetkit_api.security_suite.detectors import det_log4shell_0459
+from fleetkit_api.security_suite.detectors import det_path_traversal_0460
+from fleetkit_api.security_suite.detectors import det_sqli_0461
+from fleetkit_api.security_suite.detectors import det_xss_0462
+from fleetkit_api.security_suite.detectors import det_cmdi_0463
+from fleetkit_api.security_suite.detectors import det_ldap_0464
+from fleetkit_api.security_suite.detectors import det_header_inject_0465
+from fleetkit_api.security_suite.detectors import det_template_inject_0466
+from fleetkit_api.security_suite.detectors import det_nosqli_0467
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0468
+from fleetkit_api.security_suite.detectors import det_log4shell_0469
+from fleetkit_api.security_suite.detectors import det_path_traversal_0470
+from fleetkit_api.security_suite.detectors import det_sqli_0471
+from fleetkit_api.security_suite.detectors import det_xss_0472
+from fleetkit_api.security_suite.detectors import det_cmdi_0473
+from fleetkit_api.security_suite.detectors import det_ldap_0474
+from fleetkit_api.security_suite.detectors import det_header_inject_0475
+from fleetkit_api.security_suite.detectors import det_template_inject_0476
+from fleetkit_api.security_suite.detectors import det_nosqli_0477
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0478
+from fleetkit_api.security_suite.detectors import det_log4shell_0479
+from fleetkit_api.security_suite.detectors import det_path_traversal_0480
+from fleetkit_api.security_suite.detectors import det_sqli_0481
+from fleetkit_api.security_suite.detectors import det_xss_0482
+from fleetkit_api.security_suite.detectors import det_cmdi_0483
+from fleetkit_api.security_suite.detectors import det_ldap_0484
+from fleetkit_api.security_suite.detectors import det_header_inject_0485
+from fleetkit_api.security_suite.detectors import det_template_inject_0486
+from fleetkit_api.security_suite.detectors import det_nosqli_0487
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0488
+from fleetkit_api.security_suite.detectors import det_log4shell_0489
+from fleetkit_api.security_suite.detectors import det_path_traversal_0490
+from fleetkit_api.security_suite.detectors import det_sqli_0491
+from fleetkit_api.security_suite.detectors import det_xss_0492
+from fleetkit_api.security_suite.detectors import det_cmdi_0493
+from fleetkit_api.security_suite.detectors import det_ldap_0494
+from fleetkit_api.security_suite.detectors import det_header_inject_0495
+from fleetkit_api.security_suite.detectors import det_template_inject_0496
+from fleetkit_api.security_suite.detectors import det_nosqli_0497
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0498
+from fleetkit_api.security_suite.detectors import det_log4shell_0499
+from fleetkit_api.security_suite.detectors import det_path_traversal_0500
+from fleetkit_api.security_suite.detectors import det_sqli_0501
+from fleetkit_api.security_suite.detectors import det_xss_0502
+from fleetkit_api.security_suite.detectors import det_cmdi_0503
+from fleetkit_api.security_suite.detectors import det_ldap_0504
+from fleetkit_api.security_suite.detectors import det_header_inject_0505
+from fleetkit_api.security_suite.detectors import det_template_inject_0506
+from fleetkit_api.security_suite.detectors import det_nosqli_0507
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0508
+from fleetkit_api.security_suite.detectors import det_log4shell_0509
+from fleetkit_api.security_suite.detectors import det_path_traversal_0510
+from fleetkit_api.security_suite.detectors import det_sqli_0511
+from fleetkit_api.security_suite.detectors import det_xss_0512
+from fleetkit_api.security_suite.detectors import det_cmdi_0513
+from fleetkit_api.security_suite.detectors import det_ldap_0514
+from fleetkit_api.security_suite.detectors import det_header_inject_0515
+from fleetkit_api.security_suite.detectors import det_template_inject_0516
+from fleetkit_api.security_suite.detectors import det_nosqli_0517
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0518
+from fleetkit_api.security_suite.detectors import det_log4shell_0519
+from fleetkit_api.security_suite.detectors import det_path_traversal_0520
+from fleetkit_api.security_suite.detectors import det_sqli_0521
+from fleetkit_api.security_suite.detectors import det_xss_0522
+from fleetkit_api.security_suite.detectors import det_cmdi_0523
+from fleetkit_api.security_suite.detectors import det_ldap_0524
+from fleetkit_api.security_suite.detectors import det_header_inject_0525
+from fleetkit_api.security_suite.detectors import det_template_inject_0526
+from fleetkit_api.security_suite.detectors import det_nosqli_0527
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0528
+from fleetkit_api.security_suite.detectors import det_log4shell_0529
+from fleetkit_api.security_suite.detectors import det_path_traversal_0530
+from fleetkit_api.security_suite.detectors import det_sqli_0531
+from fleetkit_api.security_suite.detectors import det_xss_0532
+from fleetkit_api.security_suite.detectors import det_cmdi_0533
+from fleetkit_api.security_suite.detectors import det_ldap_0534
+from fleetkit_api.security_suite.detectors import det_header_inject_0535
+from fleetkit_api.security_suite.detectors import det_template_inject_0536
+from fleetkit_api.security_suite.detectors import det_nosqli_0537
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0538
+from fleetkit_api.security_suite.detectors import det_log4shell_0539
+from fleetkit_api.security_suite.detectors import det_path_traversal_0540
+from fleetkit_api.security_suite.detectors import det_sqli_0541
+from fleetkit_api.security_suite.detectors import det_xss_0542
+from fleetkit_api.security_suite.detectors import det_cmdi_0543
+from fleetkit_api.security_suite.detectors import det_ldap_0544
+from fleetkit_api.security_suite.detectors import det_header_inject_0545
+from fleetkit_api.security_suite.detectors import det_template_inject_0546
+from fleetkit_api.security_suite.detectors import det_nosqli_0547
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0548
+from fleetkit_api.security_suite.detectors import det_log4shell_0549
+from fleetkit_api.security_suite.detectors import det_path_traversal_0550
+from fleetkit_api.security_suite.detectors import det_sqli_0551
+from fleetkit_api.security_suite.detectors import det_xss_0552
+from fleetkit_api.security_suite.detectors import det_cmdi_0553
+from fleetkit_api.security_suite.detectors import det_ldap_0554
+from fleetkit_api.security_suite.detectors import det_header_inject_0555
+from fleetkit_api.security_suite.detectors import det_template_inject_0556
+from fleetkit_api.security_suite.detectors import det_nosqli_0557
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0558
+from fleetkit_api.security_suite.detectors import det_log4shell_0559
+from fleetkit_api.security_suite.detectors import det_path_traversal_0560
+from fleetkit_api.security_suite.detectors import det_sqli_0561
+from fleetkit_api.security_suite.detectors import det_xss_0562
+from fleetkit_api.security_suite.detectors import det_cmdi_0563
+from fleetkit_api.security_suite.detectors import det_ldap_0564
+from fleetkit_api.security_suite.detectors import det_header_inject_0565
+from fleetkit_api.security_suite.detectors import det_template_inject_0566
+from fleetkit_api.security_suite.detectors import det_nosqli_0567
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0568
+from fleetkit_api.security_suite.detectors import det_log4shell_0569
+from fleetkit_api.security_suite.detectors import det_path_traversal_0570
+from fleetkit_api.security_suite.detectors import det_sqli_0571
+from fleetkit_api.security_suite.detectors import det_xss_0572
+from fleetkit_api.security_suite.detectors import det_cmdi_0573
+from fleetkit_api.security_suite.detectors import det_ldap_0574
+from fleetkit_api.security_suite.detectors import det_header_inject_0575
+from fleetkit_api.security_suite.detectors import det_template_inject_0576
+from fleetkit_api.security_suite.detectors import det_nosqli_0577
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0578
+from fleetkit_api.security_suite.detectors import det_log4shell_0579
+from fleetkit_api.security_suite.detectors import det_path_traversal_0580
+from fleetkit_api.security_suite.detectors import det_sqli_0581
+from fleetkit_api.security_suite.detectors import det_xss_0582
+from fleetkit_api.security_suite.detectors import det_cmdi_0583
+from fleetkit_api.security_suite.detectors import det_ldap_0584
+from fleetkit_api.security_suite.detectors import det_header_inject_0585
+from fleetkit_api.security_suite.detectors import det_template_inject_0586
+from fleetkit_api.security_suite.detectors import det_nosqli_0587
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0588
+from fleetkit_api.security_suite.detectors import det_log4shell_0589
+from fleetkit_api.security_suite.detectors import det_path_traversal_0590
+from fleetkit_api.security_suite.detectors import det_sqli_0591
+from fleetkit_api.security_suite.detectors import det_xss_0592
+from fleetkit_api.security_suite.detectors import det_cmdi_0593
+from fleetkit_api.security_suite.detectors import det_ldap_0594
+from fleetkit_api.security_suite.detectors import det_header_inject_0595
+from fleetkit_api.security_suite.detectors import det_template_inject_0596
+from fleetkit_api.security_suite.detectors import det_nosqli_0597
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0598
+from fleetkit_api.security_suite.detectors import det_log4shell_0599
+from fleetkit_api.security_suite.detectors import det_path_traversal_0600
+from fleetkit_api.security_suite.detectors import det_sqli_0601
+from fleetkit_api.security_suite.detectors import det_xss_0602
+from fleetkit_api.security_suite.detectors import det_cmdi_0603
+from fleetkit_api.security_suite.detectors import det_ldap_0604
+from fleetkit_api.security_suite.detectors import det_header_inject_0605
+from fleetkit_api.security_suite.detectors import det_template_inject_0606
+from fleetkit_api.security_suite.detectors import det_nosqli_0607
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0608
+from fleetkit_api.security_suite.detectors import det_log4shell_0609
+from fleetkit_api.security_suite.detectors import det_path_traversal_0610
+from fleetkit_api.security_suite.detectors import det_sqli_0611
+from fleetkit_api.security_suite.detectors import det_xss_0612
+from fleetkit_api.security_suite.detectors import det_cmdi_0613
+from fleetkit_api.security_suite.detectors import det_ldap_0614
+from fleetkit_api.security_suite.detectors import det_header_inject_0615
+from fleetkit_api.security_suite.detectors import det_template_inject_0616
+from fleetkit_api.security_suite.detectors import det_nosqli_0617
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0618
+from fleetkit_api.security_suite.detectors import det_log4shell_0619
+from fleetkit_api.security_suite.detectors import det_path_traversal_0620
+from fleetkit_api.security_suite.detectors import det_sqli_0621
+from fleetkit_api.security_suite.detectors import det_xss_0622
+from fleetkit_api.security_suite.detectors import det_cmdi_0623
+from fleetkit_api.security_suite.detectors import det_ldap_0624
+from fleetkit_api.security_suite.detectors import det_header_inject_0625
+from fleetkit_api.security_suite.detectors import det_template_inject_0626
+from fleetkit_api.security_suite.detectors import det_nosqli_0627
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0628
+from fleetkit_api.security_suite.detectors import det_log4shell_0629
+from fleetkit_api.security_suite.detectors import det_path_traversal_0630
+from fleetkit_api.security_suite.detectors import det_sqli_0631
+from fleetkit_api.security_suite.detectors import det_xss_0632
+from fleetkit_api.security_suite.detectors import det_cmdi_0633
+from fleetkit_api.security_suite.detectors import det_ldap_0634
+from fleetkit_api.security_suite.detectors import det_header_inject_0635
+from fleetkit_api.security_suite.detectors import det_template_inject_0636
+from fleetkit_api.security_suite.detectors import det_nosqli_0637
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0638
+from fleetkit_api.security_suite.detectors import det_log4shell_0639
+from fleetkit_api.security_suite.detectors import det_path_traversal_0640
+from fleetkit_api.security_suite.detectors import det_sqli_0641
+from fleetkit_api.security_suite.detectors import det_xss_0642
+from fleetkit_api.security_suite.detectors import det_cmdi_0643
+from fleetkit_api.security_suite.detectors import det_ldap_0644
+from fleetkit_api.security_suite.detectors import det_header_inject_0645
+from fleetkit_api.security_suite.detectors import det_template_inject_0646
+from fleetkit_api.security_suite.detectors import det_nosqli_0647
+from fleetkit_api.security_suite.detectors import det_proto_pollute_0648
+from fleetkit_api.security_suite.detectors import det_log4shell_0649
+from fleetkit_api.security_suite.detectors import det_path_traversal_0650
+
+INSPECTORS = [
+    det_sqli_0001.inspect,
+    det_xss_0002.inspect,
+    det_cmdi_0003.inspect,
+    det_ldap_0004.inspect,
+    det_header_inject_0005.inspect,
+    det_template_inject_0006.inspect,
+    det_nosqli_0007.inspect,
+    det_proto_pollute_0008.inspect,
+    det_log4shell_0009.inspect,
+    det_path_traversal_0010.inspect,
+    det_sqli_0011.inspect,
+    det_xss_0012.inspect,
+    det_cmdi_0013.inspect,
+    det_ldap_0014.inspect,
+    det_header_inject_0015.inspect,
+    det_template_inject_0016.inspect,
+    det_nosqli_0017.inspect,
+    det_proto_pollute_0018.inspect,
+    det_log4shell_0019.inspect,
+    det_path_traversal_0020.inspect,
+    det_sqli_0021.inspect,
+    det_xss_0022.inspect,
+    det_cmdi_0023.inspect,
+    det_ldap_0024.inspect,
+    det_header_inject_0025.inspect,
+    det_template_inject_0026.inspect,
+    det_nosqli_0027.inspect,
+    det_proto_pollute_0028.inspect,
+    det_log4shell_0029.inspect,
+    det_path_traversal_0030.inspect,
+    det_sqli_0031.inspect,
+    det_xss_0032.inspect,
+    det_cmdi_0033.inspect,
+    det_ldap_0034.inspect,
+    det_header_inject_0035.inspect,
+    det_template_inject_0036.inspect,
+    det_nosqli_0037.inspect,
+    det_proto_pollute_0038.inspect,
+    det_log4shell_0039.inspect,
+    det_path_traversal_0040.inspect,
+    det_sqli_0041.inspect,
+    det_xss_0042.inspect,
+    det_cmdi_0043.inspect,
+    det_ldap_0044.inspect,
+    det_header_inject_0045.inspect,
+    det_template_inject_0046.inspect,
+    det_nosqli_0047.inspect,
+    det_proto_pollute_0048.inspect,
+    det_log4shell_0049.inspect,
+    det_path_traversal_0050.inspect,
+    det_sqli_0051.inspect,
+    det_xss_0052.inspect,
+    det_cmdi_0053.inspect,
+    det_ldap_0054.inspect,
+    det_header_inject_0055.inspect,
+    det_template_inject_0056.inspect,
+    det_nosqli_0057.inspect,
+    det_proto_pollute_0058.inspect,
+    det_log4shell_0059.inspect,
+    det_path_traversal_0060.inspect,
+    det_sqli_0061.inspect,
+    det_xss_0062.inspect,
+    det_cmdi_0063.inspect,
+    det_ldap_0064.inspect,
+    det_header_inject_0065.inspect,
+    det_template_inject_0066.inspect,
+    det_nosqli_0067.inspect,
+    det_proto_pollute_0068.inspect,
+    det_log4shell_0069.inspect,
+    det_path_traversal_0070.inspect,
+    det_sqli_0071.inspect,
+    det_xss_0072.inspect,
+    det_cmdi_0073.inspect,
+    det_ldap_0074.inspect,
+    det_header_inject_0075.inspect,
+    det_template_inject_0076.inspect,
+    det_nosqli_0077.inspect,
+    det_proto_pollute_0078.inspect,
+    det_log4shell_0079.inspect,
+    det_path_traversal_0080.inspect,
+    det_sqli_0081.inspect,
+    det_xss_0082.inspect,
+    det_cmdi_0083.inspect,
+    det_ldap_0084.inspect,
+    det_header_inject_0085.inspect,
+    det_template_inject_0086.inspect,
+    det_nosqli_0087.inspect,
+    det_proto_pollute_0088.inspect,
+    det_log4shell_0089.inspect,
+    det_path_traversal_0090.inspect,
+    det_sqli_0091.inspect,
+    det_xss_0092.inspect,
+    det_cmdi_0093.inspect,
+    det_ldap_0094.inspect,
+    det_header_inject_0095.inspect,
+    det_template_inject_0096.inspect,
+    det_nosqli_0097.inspect,
+    det_proto_pollute_0098.inspect,
+    det_log4shell_0099.inspect,
+    det_path_traversal_0100.inspect,
+    det_sqli_0101.inspect,
+    det_xss_0102.inspect,
+    det_cmdi_0103.inspect,
+    det_ldap_0104.inspect,
+    det_header_inject_0105.inspect,
+    det_template_inject_0106.inspect,
+    det_nosqli_0107.inspect,
+    det_proto_pollute_0108.inspect,
+    det_log4shell_0109.inspect,
+    det_path_traversal_0110.inspect,
+    det_sqli_0111.inspect,
+    det_xss_0112.inspect,
+    det_cmdi_0113.inspect,
+    det_ldap_0114.inspect,
+    det_header_inject_0115.inspect,
+    det_template_inject_0116.inspect,
+    det_nosqli_0117.inspect,
+    det_proto_pollute_0118.inspect,
+    det_log4shell_0119.inspect,
+    det_path_traversal_0120.inspect,
+    det_sqli_0121.inspect,
+    det_xss_0122.inspect,
+    det_cmdi_0123.inspect,
+    det_ldap_0124.inspect,
+    det_header_inject_0125.inspect,
+    det_template_inject_0126.inspect,
+    det_nosqli_0127.inspect,
+    det_proto_pollute_0128.inspect,
+    det_log4shell_0129.inspect,
+    det_path_traversal_0130.inspect,
+    det_sqli_0131.inspect,
+    det_xss_0132.inspect,
+    det_cmdi_0133.inspect,
+    det_ldap_0134.inspect,
+    det_header_inject_0135.inspect,
+    det_template_inject_0136.inspect,
+    det_nosqli_0137.inspect,
+    det_proto_pollute_0138.inspect,
+    det_log4shell_0139.inspect,
+    det_path_traversal_0140.inspect,
+    det_sqli_0141.inspect,
+    det_xss_0142.inspect,
+    det_cmdi_0143.inspect,
+    det_ldap_0144.inspect,
+    det_header_inject_0145.inspect,
+    det_template_inject_0146.inspect,
+    det_nosqli_0147.inspect,
+    det_proto_pollute_0148.inspect,
+    det_log4shell_0149.inspect,
+    det_path_traversal_0150.inspect,
+    det_sqli_0151.inspect,
+    det_xss_0152.inspect,
+    det_cmdi_0153.inspect,
+    det_ldap_0154.inspect,
+    det_header_inject_0155.inspect,
+    det_template_inject_0156.inspect,
+    det_nosqli_0157.inspect,
+    det_proto_pollute_0158.inspect,
+    det_log4shell_0159.inspect,
+    det_path_traversal_0160.inspect,
+    det_sqli_0161.inspect,
+    det_xss_0162.inspect,
+    det_cmdi_0163.inspect,
+    det_ldap_0164.inspect,
+    det_header_inject_0165.inspect,
+    det_template_inject_0166.inspect,
+    det_nosqli_0167.inspect,
+    det_proto_pollute_0168.inspect,
+    det_log4shell_0169.inspect,
+    det_path_traversal_0170.inspect,
+    det_sqli_0171.inspect,
+    det_xss_0172.inspect,
+    det_cmdi_0173.inspect,
+    det_ldap_0174.inspect,
+    det_header_inject_0175.inspect,
+    det_template_inject_0176.inspect,
+    det_nosqli_0177.inspect,
+    det_proto_pollute_0178.inspect,
+    det_log4shell_0179.inspect,
+    det_path_traversal_0180.inspect,
+    det_sqli_0181.inspect,
+    det_xss_0182.inspect,
+    det_cmdi_0183.inspect,
+    det_ldap_0184.inspect,
+    det_header_inject_0185.inspect,
+    det_template_inject_0186.inspect,
+    det_nosqli_0187.inspect,
+    det_proto_pollute_0188.inspect,
+    det_log4shell_0189.inspect,
+    det_path_traversal_0190.inspect,
+    det_sqli_0191.inspect,
+    det_xss_0192.inspect,
+    det_cmdi_0193.inspect,
+    det_ldap_0194.inspect,
+    det_header_inject_0195.inspect,
+    det_template_inject_0196.inspect,
+    det_nosqli_0197.inspect,
+    det_proto_pollute_0198.inspect,
+    det_log4shell_0199.inspect,
+    det_path_traversal_0200.inspect,
+    det_sqli_0201.inspect,
+    det_xss_0202.inspect,
+    det_cmdi_0203.inspect,
+    det_ldap_0204.inspect,
+    det_header_inject_0205.inspect,
+    det_template_inject_0206.inspect,
+    det_nosqli_0207.inspect,
+    det_proto_pollute_0208.inspect,
+    det_log4shell_0209.inspect,
+    det_path_traversal_0210.inspect,
+    det_sqli_0211.inspect,
+    det_xss_0212.inspect,
+    det_cmdi_0213.inspect,
+    det_ldap_0214.inspect,
+    det_header_inject_0215.inspect,
+    det_template_inject_0216.inspect,
+    det_nosqli_0217.inspect,
+    det_proto_pollute_0218.inspect,
+    det_log4shell_0219.inspect,
+    det_path_traversal_0220.inspect,
+    det_sqli_0221.inspect,
+    det_xss_0222.inspect,
+    det_cmdi_0223.inspect,
+    det_ldap_0224.inspect,
+    det_header_inject_0225.inspect,
+    det_template_inject_0226.inspect,
+    det_nosqli_0227.inspect,
+    det_proto_pollute_0228.inspect,
+    det_log4shell_0229.inspect,
+    det_path_traversal_0230.inspect,
+    det_sqli_0231.inspect,
+    det_xss_0232.inspect,
+    det_cmdi_0233.inspect,
+    det_ldap_0234.inspect,
+    det_header_inject_0235.inspect,
+    det_template_inject_0236.inspect,
+    det_nosqli_0237.inspect,
+    det_proto_pollute_0238.inspect,
+    det_log4shell_0239.inspect,
+    det_path_traversal_0240.inspect,
+    det_sqli_0241.inspect,
+    det_xss_0242.inspect,
+    det_cmdi_0243.inspect,
+    det_ldap_0244.inspect,
+    det_header_inject_0245.inspect,
+    det_template_inject_0246.inspect,
+    det_nosqli_0247.inspect,
+    det_proto_pollute_0248.inspect,
+    det_log4shell_0249.inspect,
+    det_path_traversal_0250.inspect,
+    det_sqli_0251.inspect,
+    det_xss_0252.inspect,
+    det_cmdi_0253.inspect,
+    det_ldap_0254.inspect,
+    det_header_inject_0255.inspect,
+    det_template_inject_0256.inspect,
+    det_nosqli_0257.inspect,
+    det_proto_pollute_0258.inspect,
+    det_log4shell_0259.inspect,
+    det_path_traversal_0260.inspect,
+    det_sqli_0261.inspect,
+    det_xss_0262.inspect,
+    det_cmdi_0263.inspect,
+    det_ldap_0264.inspect,
+    det_header_inject_0265.inspect,
+    det_template_inject_0266.inspect,
+    det_nosqli_0267.inspect,
+    det_proto_pollute_0268.inspect,
+    det_log4shell_0269.inspect,
+    det_path_traversal_0270.inspect,
+    det_sqli_0271.inspect,
+    det_xss_0272.inspect,
+    det_cmdi_0273.inspect,
+    det_ldap_0274.inspect,
+    det_header_inject_0275.inspect,
+    det_template_inject_0276.inspect,
+    det_nosqli_0277.inspect,
+    det_proto_pollute_0278.inspect,
+    det_log4shell_0279.inspect,
+    det_path_traversal_0280.inspect,
+    det_sqli_0281.inspect,
+    det_xss_0282.inspect,
+    det_cmdi_0283.inspect,
+    det_ldap_0284.inspect,
+    det_header_inject_0285.inspect,
+    det_template_inject_0286.inspect,
+    det_nosqli_0287.inspect,
+    det_proto_pollute_0288.inspect,
+    det_log4shell_0289.inspect,
+    det_path_traversal_0290.inspect,
+    det_sqli_0291.inspect,
+    det_xss_0292.inspect,
+    det_cmdi_0293.inspect,
+    det_ldap_0294.inspect,
+    det_header_inject_0295.inspect,
+    det_template_inject_0296.inspect,
+    det_nosqli_0297.inspect,
+    det_proto_pollute_0298.inspect,
+    det_log4shell_0299.inspect,
+    det_path_traversal_0300.inspect,
+    det_sqli_0301.inspect,
+    det_xss_0302.inspect,
+    det_cmdi_0303.inspect,
+    det_ldap_0304.inspect,
+    det_header_inject_0305.inspect,
+    det_template_inject_0306.inspect,
+    det_nosqli_0307.inspect,
+    det_proto_pollute_0308.inspect,
+    det_log4shell_0309.inspect,
+    det_path_traversal_0310.inspect,
+    det_sqli_0311.inspect,
+    det_xss_0312.inspect,
+    det_cmdi_0313.inspect,
+    det_ldap_0314.inspect,
+    det_header_inject_0315.inspect,
+    det_template_inject_0316.inspect,
+    det_nosqli_0317.inspect,
+    det_proto_pollute_0318.inspect,
+    det_log4shell_0319.inspect,
+    det_path_traversal_0320.inspect,
+    det_sqli_0321.inspect,
+    det_xss_0322.inspect,
+    det_cmdi_0323.inspect,
+    det_ldap_0324.inspect,
+    det_header_inject_0325.inspect,
+    det_template_inject_0326.inspect,
+    det_nosqli_0327.inspect,
+    det_proto_pollute_0328.inspect,
+    det_log4shell_0329.inspect,
+    det_path_traversal_0330.inspect,
+    det_sqli_0331.inspect,
+    det_xss_0332.inspect,
+    det_cmdi_0333.inspect,
+    det_ldap_0334.inspect,
+    det_header_inject_0335.inspect,
+    det_template_inject_0336.inspect,
+    det_nosqli_0337.inspect,
+    det_proto_pollute_0338.inspect,
+    det_log4shell_0339.inspect,
+    det_path_traversal_0340.inspect,
+    det_sqli_0341.inspect,
+    det_xss_0342.inspect,
+    det_cmdi_0343.inspect,
+    det_ldap_0344.inspect,
+    det_header_inject_0345.inspect,
+    det_template_inject_0346.inspect,
+    det_nosqli_0347.inspect,
+    det_proto_pollute_0348.inspect,
+    det_log4shell_0349.inspect,
+    det_path_traversal_0350.inspect,
+    det_sqli_0351.inspect,
+    det_xss_0352.inspect,
+    det_cmdi_0353.inspect,
+    det_ldap_0354.inspect,
+    det_header_inject_0355.inspect,
+    det_template_inject_0356.inspect,
+    det_nosqli_0357.inspect,
+    det_proto_pollute_0358.inspect,
+    det_log4shell_0359.inspect,
+    det_path_traversal_0360.inspect,
+    det_sqli_0361.inspect,
+    det_xss_0362.inspect,
+    det_cmdi_0363.inspect,
+    det_ldap_0364.inspect,
+    det_header_inject_0365.inspect,
+    det_template_inject_0366.inspect,
+    det_nosqli_0367.inspect,
+    det_proto_pollute_0368.inspect,
+    det_log4shell_0369.inspect,
+    det_path_traversal_0370.inspect,
+    det_sqli_0371.inspect,
+    det_xss_0372.inspect,
+    det_cmdi_0373.inspect,
+    det_ldap_0374.inspect,
+    det_header_inject_0375.inspect,
+    det_template_inject_0376.inspect,
+    det_nosqli_0377.inspect,
+    det_proto_pollute_0378.inspect,
+    det_log4shell_0379.inspect,
+    det_path_traversal_0380.inspect,
+    det_sqli_0381.inspect,
+    det_xss_0382.inspect,
+    det_cmdi_0383.inspect,
+    det_ldap_0384.inspect,
+    det_header_inject_0385.inspect,
+    det_template_inject_0386.inspect,
+    det_nosqli_0387.inspect,
+    det_proto_pollute_0388.inspect,
+    det_log4shell_0389.inspect,
+    det_path_traversal_0390.inspect,
+    det_sqli_0391.inspect,
+    det_xss_0392.inspect,
+    det_cmdi_0393.inspect,
+    det_ldap_0394.inspect,
+    det_header_inject_0395.inspect,
+    det_template_inject_0396.inspect,
+    det_nosqli_0397.inspect,
+    det_proto_pollute_0398.inspect,
+    det_log4shell_0399.inspect,
+    det_path_traversal_0400.inspect,
+    det_sqli_0401.inspect,
+    det_xss_0402.inspect,
+    det_cmdi_0403.inspect,
+    det_ldap_0404.inspect,
+    det_header_inject_0405.inspect,
+    det_template_inject_0406.inspect,
+    det_nosqli_0407.inspect,
+    det_proto_pollute_0408.inspect,
+    det_log4shell_0409.inspect,
+    det_path_traversal_0410.inspect,
+    det_sqli_0411.inspect,
+    det_xss_0412.inspect,
+    det_cmdi_0413.inspect,
+    det_ldap_0414.inspect,
+    det_header_inject_0415.inspect,
+    det_template_inject_0416.inspect,
+    det_nosqli_0417.inspect,
+    det_proto_pollute_0418.inspect,
+    det_log4shell_0419.inspect,
+    det_path_traversal_0420.inspect,
+    det_sqli_0421.inspect,
+    det_xss_0422.inspect,
+    det_cmdi_0423.inspect,
+    det_ldap_0424.inspect,
+    det_header_inject_0425.inspect,
+    det_template_inject_0426.inspect,
+    det_nosqli_0427.inspect,
+    det_proto_pollute_0428.inspect,
+    det_log4shell_0429.inspect,
+    det_path_traversal_0430.inspect,
+    det_sqli_0431.inspect,
+    det_xss_0432.inspect,
+    det_cmdi_0433.inspect,
+    det_ldap_0434.inspect,
+    det_header_inject_0435.inspect,
+    det_template_inject_0436.inspect,
+    det_nosqli_0437.inspect,
+    det_proto_pollute_0438.inspect,
+    det_log4shell_0439.inspect,
+    det_path_traversal_0440.inspect,
+    det_sqli_0441.inspect,
+    det_xss_0442.inspect,
+    det_cmdi_0443.inspect,
+    det_ldap_0444.inspect,
+    det_header_inject_0445.inspect,
+    det_template_inject_0446.inspect,
+    det_nosqli_0447.inspect,
+    det_proto_pollute_0448.inspect,
+    det_log4shell_0449.inspect,
+    det_path_traversal_0450.inspect,
+    det_sqli_0451.inspect,
+    det_xss_0452.inspect,
+    det_cmdi_0453.inspect,
+    det_ldap_0454.inspect,
+    det_header_inject_0455.inspect,
+    det_template_inject_0456.inspect,
+    det_nosqli_0457.inspect,
+    det_proto_pollute_0458.inspect,
+    det_log4shell_0459.inspect,
+    det_path_traversal_0460.inspect,
+    det_sqli_0461.inspect,
+    det_xss_0462.inspect,
+    det_cmdi_0463.inspect,
+    det_ldap_0464.inspect,
+    det_header_inject_0465.inspect,
+    det_template_inject_0466.inspect,
+    det_nosqli_0467.inspect,
+    det_proto_pollute_0468.inspect,
+    det_log4shell_0469.inspect,
+    det_path_traversal_0470.inspect,
+    det_sqli_0471.inspect,
+    det_xss_0472.inspect,
+    det_cmdi_0473.inspect,
+    det_ldap_0474.inspect,
+    det_header_inject_0475.inspect,
+    det_template_inject_0476.inspect,
+    det_nosqli_0477.inspect,
+    det_proto_pollute_0478.inspect,
+    det_log4shell_0479.inspect,
+    det_path_traversal_0480.inspect,
+    det_sqli_0481.inspect,
+    det_xss_0482.inspect,
+    det_cmdi_0483.inspect,
+    det_ldap_0484.inspect,
+    det_header_inject_0485.inspect,
+    det_template_inject_0486.inspect,
+    det_nosqli_0487.inspect,
+    det_proto_pollute_0488.inspect,
+    det_log4shell_0489.inspect,
+    det_path_traversal_0490.inspect,
+    det_sqli_0491.inspect,
+    det_xss_0492.inspect,
+    det_cmdi_0493.inspect,
+    det_ldap_0494.inspect,
+    det_header_inject_0495.inspect,
+    det_template_inject_0496.inspect,
+    det_nosqli_0497.inspect,
+    det_proto_pollute_0498.inspect,
+    det_log4shell_0499.inspect,
+    det_path_traversal_0500.inspect,
+    det_sqli_0501.inspect,
+    det_xss_0502.inspect,
+    det_cmdi_0503.inspect,
+    det_ldap_0504.inspect,
+    det_header_inject_0505.inspect,
+    det_template_inject_0506.inspect,
+    det_nosqli_0507.inspect,
+    det_proto_pollute_0508.inspect,
+    det_log4shell_0509.inspect,
+    det_path_traversal_0510.inspect,
+    det_sqli_0511.inspect,
+    det_xss_0512.inspect,
+    det_cmdi_0513.inspect,
+    det_ldap_0514.inspect,
+    det_header_inject_0515.inspect,
+    det_template_inject_0516.inspect,
+    det_nosqli_0517.inspect,
+    det_proto_pollute_0518.inspect,
+    det_log4shell_0519.inspect,
+    det_path_traversal_0520.inspect,
+    det_sqli_0521.inspect,
+    det_xss_0522.inspect,
+    det_cmdi_0523.inspect,
+    det_ldap_0524.inspect,
+    det_header_inject_0525.inspect,
+    det_template_inject_0526.inspect,
+    det_nosqli_0527.inspect,
+    det_proto_pollute_0528.inspect,
+    det_log4shell_0529.inspect,
+    det_path_traversal_0530.inspect,
+    det_sqli_0531.inspect,
+    det_xss_0532.inspect,
+    det_cmdi_0533.inspect,
+    det_ldap_0534.inspect,
+    det_header_inject_0535.inspect,
+    det_template_inject_0536.inspect,
+    det_nosqli_0537.inspect,
+    det_proto_pollute_0538.inspect,
+    det_log4shell_0539.inspect,
+    det_path_traversal_0540.inspect,
+    det_sqli_0541.inspect,
+    det_xss_0542.inspect,
+    det_cmdi_0543.inspect,
+    det_ldap_0544.inspect,
+    det_header_inject_0545.inspect,
+    det_template_inject_0546.inspect,
+    det_nosqli_0547.inspect,
+    det_proto_pollute_0548.inspect,
+    det_log4shell_0549.inspect,
+    det_path_traversal_0550.inspect,
+    det_sqli_0551.inspect,
+    det_xss_0552.inspect,
+    det_cmdi_0553.inspect,
+    det_ldap_0554.inspect,
+    det_header_inject_0555.inspect,
+    det_template_inject_0556.inspect,
+    det_nosqli_0557.inspect,
+    det_proto_pollute_0558.inspect,
+    det_log4shell_0559.inspect,
+    det_path_traversal_0560.inspect,
+    det_sqli_0561.inspect,
+    det_xss_0562.inspect,
+    det_cmdi_0563.inspect,
+    det_ldap_0564.inspect,
+    det_header_inject_0565.inspect,
+    det_template_inject_0566.inspect,
+    det_nosqli_0567.inspect,
+    det_proto_pollute_0568.inspect,
+    det_log4shell_0569.inspect,
+    det_path_traversal_0570.inspect,
+    det_sqli_0571.inspect,
+    det_xss_0572.inspect,
+    det_cmdi_0573.inspect,
+    det_ldap_0574.inspect,
+    det_header_inject_0575.inspect,
+    det_template_inject_0576.inspect,
+    det_nosqli_0577.inspect,
+    det_proto_pollute_0578.inspect,
+    det_log4shell_0579.inspect,
+    det_path_traversal_0580.inspect,
+    det_sqli_0581.inspect,
+    det_xss_0582.inspect,
+    det_cmdi_0583.inspect,
+    det_ldap_0584.inspect,
+    det_header_inject_0585.inspect,
+    det_template_inject_0586.inspect,
+    det_nosqli_0587.inspect,
+    det_proto_pollute_0588.inspect,
+    det_log4shell_0589.inspect,
+    det_path_traversal_0590.inspect,
+    det_sqli_0591.inspect,
+    det_xss_0592.inspect,
+    det_cmdi_0593.inspect,
+    det_ldap_0594.inspect,
+    det_header_inject_0595.inspect,
+    det_template_inject_0596.inspect,
+    det_nosqli_0597.inspect,
+    det_proto_pollute_0598.inspect,
+    det_log4shell_0599.inspect,
+    det_path_traversal_0600.inspect,
+    det_sqli_0601.inspect,
+    det_xss_0602.inspect,
+    det_cmdi_0603.inspect,
+    det_ldap_0604.inspect,
+    det_header_inject_0605.inspect,
+    det_template_inject_0606.inspect,
+    det_nosqli_0607.inspect,
+    det_proto_pollute_0608.inspect,
+    det_log4shell_0609.inspect,
+    det_path_traversal_0610.inspect,
+    det_sqli_0611.inspect,
+    det_xss_0612.inspect,
+    det_cmdi_0613.inspect,
+    det_ldap_0614.inspect,
+    det_header_inject_0615.inspect,
+    det_template_inject_0616.inspect,
+    det_nosqli_0617.inspect,
+    det_proto_pollute_0618.inspect,
+    det_log4shell_0619.inspect,
+    det_path_traversal_0620.inspect,
+    det_sqli_0621.inspect,
+    det_xss_0622.inspect,
+    det_cmdi_0623.inspect,
+    det_ldap_0624.inspect,
+    det_header_inject_0625.inspect,
+    det_template_inject_0626.inspect,
+    det_nosqli_0627.inspect,
+    det_proto_pollute_0628.inspect,
+    det_log4shell_0629.inspect,
+    det_path_traversal_0630.inspect,
+    det_sqli_0631.inspect,
+    det_xss_0632.inspect,
+    det_cmdi_0633.inspect,
+    det_ldap_0634.inspect,
+    det_header_inject_0635.inspect,
+    det_template_inject_0636.inspect,
+    det_nosqli_0637.inspect,
+    det_proto_pollute_0638.inspect,
+    det_log4shell_0639.inspect,
+    det_path_traversal_0640.inspect,
+    det_sqli_0641.inspect,
+    det_xss_0642.inspect,
+    det_cmdi_0643.inspect,
+    det_ldap_0644.inspect,
+    det_header_inject_0645.inspect,
+    det_template_inject_0646.inspect,
+    det_nosqli_0647.inspect,
+    det_proto_pollute_0648.inspect,
+    det_log4shell_0649.inspect,
+    det_path_traversal_0650.inspect,
+]
+
+
+def scan_text(value: str) -> list:
+    findings = []
+    for fn in INSPECTORS:
+        hit = fn(value)
+        if hit is not None:
+            findings.append(hit)
+    findings.sort(key=lambda f: f.score, reverse=True)
+    return findings
+
+
+def any_suspicious(value: str, *, min_score: int = 3) -> bool:
+    return any(f.score >= min_score for f in scan_text(value))

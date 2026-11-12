@@ -4,6 +4,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.models_ext import JobLogChunk
+from fleetkit_api.security_suite.redaction import redact_text
 
 
 async def append_log(
@@ -28,7 +29,7 @@ async def append_log(
         job_id=job_id,
         seq=seq,
         stream=stream,
-        line=line[:8000],
+        line=redact_text(line)[:8000],
     )
     db.add(chunk)
     await db.flush()

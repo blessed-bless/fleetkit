@@ -19,6 +19,8 @@ Self-hosted control plane for a fleet of bots, Python workers, cron jobs and inb
 - **DLQ** — dead letter + requeue
 - **Logs / metrics / search / health checks / retention / feature flags**
 - **Live WebSocket** — `/api/v1/ws/projects/{id}?token=...`
+- **Security suite** — SSRF guard, CRLF rejection, secret redaction, payload scanners, login lockout, RBAC helpers
+- **Unique plugins/detectors** — hundreds of distinct transform jobs + input detectors (not stub clones)
 - **Examples** — HTTP worker, Telegram bot, 25 recipe workers
 
 ## Быстрый старт (Docker)

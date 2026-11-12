@@ -37,9 +37,11 @@ async def net_tcp_check(payload: dict[str, Any]) -> dict[str, Any]:
 
 @job("net.http_status")
 async def net_http_status(payload: dict[str, Any]) -> dict[str, Any]:
-    url = require_url(payload)
+    from fleetkit_api.security_suite.ssrf import assert_safe_url
+
+    url = assert_safe_url(require_url(payload), allow_private=bool(payload.get("allow_private")))
     timeout = as_float(payload, "timeout", 10.0, min_v=1.0, max_v=60.0)
-    async with httpx.AsyncClient(timeout=timeout, follow_redirects=True) as client:
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         resp = await client.head(url)
         if resp.status_code >= 400:
             resp = await client.get(url)

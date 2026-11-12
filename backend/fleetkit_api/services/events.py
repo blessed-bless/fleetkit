@@ -5,6 +5,7 @@ from typing import Any
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.models import Event
+from fleetkit_api.security_suite.redaction import redact_mapping, redact_text
 
 
 async def emit_event(
@@ -24,8 +25,8 @@ async def emit_event(
         job_id=job_id,
         level=level,
         kind=kind,
-        message=message,
-        data=data or {},
+        message=redact_text(message)[:4000],
+        data=redact_mapping(data or {}),
     )
     db.add(event)
     await db.flush()

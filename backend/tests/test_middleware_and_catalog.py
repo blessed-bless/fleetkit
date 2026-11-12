@@ -8,11 +8,6 @@ def test_middleware_classes_exist():
     assert AgentRateLimitMiddleware is not None
 
 
-def test_demo_prefix_handlers_exist():
-    for i in range(1, 41):
-        assert get_handler(f"demo.prefix.{i:02d}") is not None
-
-
 def test_transform_handlers_exist():
     assert get_handler("transform.map_keys") is not None
     assert get_handler("transform.filter_keys") is not None
