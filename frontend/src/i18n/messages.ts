@@ -204,6 +204,7 @@ export const messages = {
     "metrics.done": "Сняли snapshot метрик",
     "metrics.fail": "Не снялось",
     "metrics.empty": "Пока пусто. Сними snapshot после первых job.",
+    "metrics.outcomes": "Исходы за 24ч",
 
     "health.title": "Health checks",
     "health.lead": "HTTP-проверки apps. Запусти вручную или жди интервал.",
@@ -538,6 +539,7 @@ export const messages = {
     "metrics.done": "Metrics snapshot taken",
     "metrics.fail": "Snapshot failed",
     "metrics.empty": "Empty for now. Take a snapshot after the first jobs.",
+    "metrics.outcomes": "Outcomes (24h)",
     "lang.ru": "RU",
 
     "health.title": "Health checks",

@@ -7,7 +7,12 @@ from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_project_by_api_key, get_project_for_user
 from fleetkit_api.models import Project
 from fleetkit_api.schemas_ext import MetricIn, MetricOut
-from fleetkit_api.services.metrics import query_metrics, record_metric, snapshot_fleet_metrics
+from fleetkit_api.services.metrics import (
+    outcome_totals,
+    query_metrics,
+    record_metric,
+    snapshot_fleet_metrics,
+)
 
 router = APIRouter(tags=["metrics"])
 
@@ -20,6 +25,15 @@ async def get_metrics(
     hours: int = Query(default=24, ge=1, le=168),
 ) -> list:
     return await query_metrics(db, project_id=project.id, name=name, hours=hours)
+
+
+@router.get("/projects/{project_id}/metrics/outcomes")
+async def get_outcomes(
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+    hours: int = Query(default=24, ge=1, le=168),
+) -> dict[str, float]:
+    return await outcome_totals(db, project.id, hours=hours)
 
 
 @router.post("/projects/{project_id}/metrics/snapshot")

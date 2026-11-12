@@ -69,6 +69,34 @@ async def aggregate_avg(
     return float(value or 0.0)
 
 
+async def sum_metric(
+    db: AsyncSession,
+    *,
+    project_id: str,
+    name: str,
+    hours: int = 24,
+) -> float:
+    since = datetime.now(UTC) - timedelta(hours=hours)
+    value = await db.scalar(
+        select(func.coalesce(func.sum(MetricSample.value), 0.0)).where(
+            MetricSample.project_id == project_id,
+            MetricSample.name == name,
+            MetricSample.created_at >= since,
+        )
+    )
+    return float(value or 0.0)
+
+
+async def outcome_totals(
+    db: AsyncSession, project_id: str, *, hours: int = 24
+) -> dict[str, float]:
+    names = ("jobs.succeeded", "jobs.failed", "jobs.retry")
+    return {
+        name: await sum_metric(db, project_id=project_id, name=name, hours=hours)
+        for name in names
+    }
+
+
 async def snapshot_fleet_metrics(db: AsyncSession, project_id: str) -> dict[str, float]:
     from fleetkit_api.models import App, Job, JobStatus, Worker, WorkerStatus
 

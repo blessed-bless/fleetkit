@@ -7,15 +7,23 @@ export function MetricsPage() {
   const { t } = useI18n();
   const { projectId } = useProject();
   const [values, setValues] = useState<Record<string, number>>({});
+  const [outcomes, setOutcomes] = useState<Record<string, number>>({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
 
   const max = useMemo(() => Math.max(1, ...Object.values(values)), [values]);
+  const outcomeMax = useMemo(() => Math.max(1, ...Object.values(outcomes)), [outcomes]);
 
   async function snapshot() {
+    if (!projectId) return;
     setBusy(true);
     try {
-      setValues(await api.snapshotMetrics(projectId));
+      const [snap, out] = await Promise.all([
+        api.snapshotMetrics(projectId),
+        api.metricOutcomes(projectId, 24),
+      ]);
+      setValues(snap);
+      setOutcomes(out);
       setMsg(t("metrics.done"));
     } catch (err) {
       setMsg(err instanceof Error ? err.message : t("metrics.fail"));
@@ -57,6 +65,22 @@ export function MetricsPage() {
           ))}
         </div>
       )}
+      {Object.keys(outcomes).length > 0 ? (
+        <section className="panel stack-gap">
+          <h2 style={{ margin: 0 }}>{t("metrics.outcomes")}</h2>
+          <div className="grid stats">
+            {Object.entries(outcomes).map(([key, value]) => (
+              <div className="stat" key={key}>
+                <div className="label">{key}</div>
+                <div className="value">{value}</div>
+                <div className="metric-bar">
+                  <span style={{ width: `${Math.max(4, (value / outcomeMax) * 100)}%` }} />
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+      ) : null}
     </div>
   );
 }

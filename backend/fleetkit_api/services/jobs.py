@@ -395,11 +395,20 @@ async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
             message=f"Job {job.name} succeeded",
         )
         from fleetkit_api.services.live import live_hub
+        from fleetkit_api.services.metrics import record_metric
 
         await live_hub.publish(
             app.project_id,
             "job.succeeded",
             {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
+        await record_metric(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            name="jobs.succeeded",
+            value=1.0,
+            labels={"job": job.name, "queue": job.queue},
         )
     await db.flush()
     _bust_overview()
@@ -430,6 +439,8 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
             await push_dead_letter(db, job=job, error=error)
 
     if app:
+        from fleetkit_api.services.metrics import record_metric
+
         await emit_event(
             db,
             project_id=app.project_id,
@@ -444,6 +455,14 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
             app.project_id,
             kind,
             {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
+        await record_metric(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            name="jobs.failed" if job.status == JobStatus.failed else "jobs.retry",
+            value=1.0,
+            labels={"job": job.name, "queue": job.queue},
         )
     await db.flush()
     _bust_overview()
