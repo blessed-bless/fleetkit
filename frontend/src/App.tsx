@@ -14,6 +14,7 @@ import { SchedulesPage } from "./pages/SchedulesPage";
 import { AuditPage } from "./pages/AuditPage";
 import { HealthPage } from "./pages/HealthPage";
 import { OpsPage } from "./pages/OpsPage";
+import { ScenariosPage } from "./pages/ScenariosPage";
 import { TemplatesPage } from "./pages/TemplatesPage";
 import { WebhooksPage } from "./pages/WebhooksPage";
 import { ProjectPicker, ProjectProvider, useProject } from "./project";
@@ -62,6 +63,7 @@ function Shell({
         ["/schedules", t("nav.schedules")],
         ["/webhooks", t("nav.webhooks")],
         ["/templates", t("nav.templates")],
+        ["/scenarios", t("nav.scenarios")],
       ],
     },
     {
@@ -1011,6 +1013,7 @@ export default function App() {
         <Route path="/templates" element={<TemplatesPage />} />
         <Route path="/health" element={<HealthPage />} />
         <Route path="/ops" element={<OpsPage />} />
+        <Route path="/scenarios" element={<ScenariosPage />} />
         <Route path="/audit" element={<AuditPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />

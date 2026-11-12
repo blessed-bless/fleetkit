@@ -15,13 +15,22 @@ export function OpsPage() {
   const [flagOn, setFlagOn] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
   const [inviteToken, setInviteToken] = useState("");
+  const [quotas, setQuotas] = useState<Record<string, unknown> | null>(null);
+  const [exportJson, setExportJson] = useState("");
+  const [importJson, setImportJson] = useState("");
   const [msg, setMsg] = useState("");
 
   async function reload(id: string) {
-    const [r, f, m] = await Promise.all([api.retention(id), api.flags(id), api.members(id)]);
+    const [r, f, m, q] = await Promise.all([
+      api.retention(id),
+      api.flags(id),
+      api.members(id),
+      api.quotas(id),
+    ]);
     setRetention(r);
     setFlags(f);
     setMembers(m);
+    setQuotas(q);
   }
 
   useEffect(() => {
@@ -152,6 +161,64 @@ export function OpsPage() {
             </tbody>
           </table>
         )}
+      </section>
+
+      <section className="panel stack-gap">
+        <h2 style={{ margin: 0 }}>{t("ops.quotas")}</h2>
+        {quotas ? (
+          <pre className="log-box">{JSON.stringify(quotas, null, 2)}</pre>
+        ) : (
+          <p className="muted">{t("ops.quotasEmpty")}</p>
+        )}
+      </section>
+
+      <section className="panel stack-gap">
+        <div className="page-head" style={{ marginBottom: 0 }}>
+          <h2 style={{ margin: 0 }}>{t("ops.transfer")}</h2>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={async () => {
+              if (!projectId) return;
+              try {
+                const data = await api.exportProject(projectId);
+                setExportJson(JSON.stringify(data, null, 2));
+                setMsg(t("ops.exported"));
+              } catch (err) {
+                setMsg(err instanceof Error ? err.message : t("ops.exportFail"));
+              }
+            }}
+          >
+            {t("ops.export")}
+          </button>
+        </div>
+        {exportJson ? <pre className="log-box">{exportJson}</pre> : null}
+        <div className="field">
+          <label>{t("ops.importJson")}</label>
+          <textarea
+            rows={6}
+            value={importJson}
+            onChange={(e) => setImportJson(e.target.value)}
+            placeholder="{}"
+          />
+        </div>
+        <button
+          className="btn"
+          type="button"
+          onClick={async () => {
+            if (!projectId) return;
+            try {
+              const body = JSON.parse(importJson || "{}") as Record<string, unknown>;
+              const res = await api.importProject(projectId, body);
+              setMsg(t("ops.imported", { n: Object.values(res).reduce((a, b) => a + b, 0) }));
+              await reload(projectId);
+            } catch (err) {
+              setMsg(err instanceof Error ? err.message : t("ops.importFail"));
+            }
+          }}
+        >
+          {t("ops.import")}
+        </button>
       </section>
 
       <section className="panel stack-gap">

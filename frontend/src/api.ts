@@ -418,4 +418,16 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  quotas: (projectId: string) =>
+    request<Record<string, unknown>>(`/api/v1/projects/${projectId}/quotas`),
+  exportProject: (projectId: string) =>
+    request<Record<string, unknown>>(`/api/v1/projects/${projectId}/export`),
+  importProject: (projectId: string, body: Record<string, unknown>) =>
+    request<Record<string, number>>(`/api/v1/projects/${projectId}/import`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  scenarios: () => request<Array<Record<string, string>>>("/api/v1/scenarios"),
+  scenario: (name: string) =>
+    request<Record<string, unknown>>(`/api/v1/scenarios/${encodeURIComponent(name)}`),
 };
