@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, tokenStore } from "./api";
@@ -9,6 +9,7 @@ import { MetricsPage } from "./pages/MetricsPage";
 import { SecretsPage } from "./pages/SecretsPage";
 
 type Project = { id: string; slug: string; name: string; description: string };
+type JobRow = Awaited<ReturnType<typeof api.jobs>>[number];
 
 function useAuth() {
   const [ready, setReady] = useState(false);
@@ -55,25 +56,30 @@ function Shell({
 
   return (
     <div className="shell">
-      <header className="topbar">
+      <aside className="sidebar">
         <div className="brand">
           Fleet<span>Kit</span>
         </div>
-        <nav className="nav">
+        <nav className="side-nav">
           {links.map(([to, label]) => (
             <Link key={to} to={to} className={loc.pathname === to ? "active" : ""}>
+              <span className="nav-dot" />
               {label}
             </Link>
           ))}
         </nav>
-        <div className="row">
-          <span className="muted">{email}</span>
+        <div className="side-foot">
+          <span className="muted" style={{ fontSize: "0.85rem", padding: "0 8px" }}>
+            {email}
+          </span>
           <button className="btn ghost" type="button" onClick={onLogout}>
             Выйти
           </button>
         </div>
-      </header>
-      {children}
+      </aside>
+      <main className="main" key={loc.pathname}>
+        {children}
+      </main>
     </div>
   );
 }
@@ -106,8 +112,8 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
           <div className="brand">
             Fleet<span>Kit</span>
           </div>
-          <h1>Вход в control plane</h1>
-          <p className="muted">Управляй ботами, воркерами и cron из одного места.</p>
+          <h1>Control plane</h1>
+          <p className="muted">Боты, воркеры и cron — одна очередь, один экран.</p>
         </div>
         <div className="field">
           <label htmlFor="email">Email</label>
@@ -177,15 +183,37 @@ function ProjectPicker({
   );
 }
 
+function statusBadge(status: string) {
+  if (status === "succeeded") return "ok";
+  if (status === "failed" || status === "timed_out") return "err";
+  if (status === "running") return "run";
+  if (status === "queued" || status === "cancelled") return "warn";
+  return "";
+}
+
 function OverviewPage() {
   const [data, setData] = useState<Awaited<ReturnType<typeof api.overview>> | null>(null);
   const [error, setError] = useState("");
+  const [tick, setTick] = useState(0);
 
   useEffect(() => {
+    let alive = true;
     api
       .overview()
-      .then(setData)
-      .catch((err) => setError(err instanceof Error ? err.message : "Обзор недоступен"));
+      .then((d) => {
+        if (alive) setData(d);
+      })
+      .catch((err) => {
+        if (alive) setError(err instanceof Error ? err.message : "Обзор недоступен");
+      });
+    return () => {
+      alive = false;
+    };
+  }, [tick]);
+
+  useEffect(() => {
+    const id = window.setInterval(() => setTick((t) => t + 1), 4000);
+    return () => window.clearInterval(id);
   }, []);
 
   if (error) return <p className="error">{error}</p>;
@@ -193,6 +221,15 @@ function OverviewPage() {
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>Обзор флота</h1>
+          <p className="lead">Очередь, воркеры и свежие события. Обновляется каждые 4 сек.</p>
+        </div>
+        <span className="live-dot">
+          <i /> live
+        </span>
+      </div>
       <div className="grid stats">
         <div className="stat">
           <div className="label">Проекты</div>
@@ -283,6 +320,12 @@ function AppsPage() {
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>Apps</h1>
+          <p className="lead">Боты, воркеры, cron и webhook-приёмники в одном проекте.</p>
+        </div>
+      </div>
       {error ? <p className="error">{error}</p> : null}
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
       <form className="panel row" onSubmit={create}>
@@ -352,45 +395,127 @@ function AppsPage() {
 function JobsPage() {
   const { projects, projectId, setProjectId } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
-  const [jobs, setJobs] = useState<Awaited<ReturnType<typeof api.jobs>>>([]);
+  const [jobs, setJobs] = useState<JobRow[]>([]);
   const [appId, setAppId] = useState("");
+  const [filterApp, setFilterApp] = useState("");
+  const [filterStatus, setFilterStatus] = useState("");
+  const [filterQ, setFilterQ] = useState("");
   const [jobName, setJobName] = useState("ping");
   const [msg, setMsg] = useState("");
+  const [selected, setSelected] = useState<Set<string>>(new Set());
+  const [activeId, setActiveId] = useState<string | null>(null);
+  const [detail, setDetail] = useState<JobRow | null>(null);
+  const [logs, setLogs] = useState<Array<{ seq: number; stream: string; line: string }>>([]);
+  const [live, setLive] = useState(true);
+
+  const reload = useCallback(async () => {
+    if (!projectId) return;
+    const list = await api.jobs(projectId, {
+      app_id: filterApp || undefined,
+      status: filterStatus || undefined,
+      q: filterQ || undefined,
+      limit: 100,
+    });
+    setJobs(list);
+  }, [projectId, filterApp, filterStatus, filterQ]);
 
   useEffect(() => {
     if (!projectId) return;
-    Promise.all([api.apps(projectId), api.jobs(projectId)])
-      .then(([a, j]) => {
+    api
+      .apps(projectId)
+      .then((a) => {
         setApps(a);
-        setJobs(j);
-        if (a[0]) setAppId(a[0].id);
+        if (a[0] && !appId) setAppId(a[0].id);
       })
       .catch((err) => setMsg(err.message));
-  }, [projectId]);
+  }, [projectId, appId]);
+
+  useEffect(() => {
+    reload().catch((err) => setMsg(err.message));
+  }, [reload]);
+
+  useEffect(() => {
+    if (!live) return;
+    const id = window.setInterval(() => {
+      reload().catch(() => undefined);
+    }, 3000);
+    return () => window.clearInterval(id);
+  }, [live, reload]);
+
+  useEffect(() => {
+    if (!projectId || !activeId) {
+      setDetail(null);
+      setLogs([]);
+      return;
+    }
+    let alive = true;
+    Promise.all([api.job(projectId, activeId), api.jobLogs(projectId, activeId)])
+      .then(([j, l]) => {
+        if (!alive) return;
+        setDetail(j);
+        setLogs(l.map((x) => ({ seq: x.seq, stream: x.stream, line: x.line })));
+      })
+      .catch(() => undefined);
+    return () => {
+      alive = false;
+    };
+  }, [projectId, activeId, jobs]);
 
   async function enqueue(e: FormEvent) {
     e.preventDefault();
     if (!projectId || !appId) return;
     try {
       await api.createJob(projectId, appId, { name: jobName, payload: { source: "dashboard" } });
-      setJobs(await api.jobs(projectId));
+      await reload();
       setMsg("Job в очереди");
     } catch (err) {
       setMsg(err instanceof Error ? err.message : "Не отправилось");
     }
   }
 
-  function statusBadge(status: string) {
-    if (status === "succeeded") return "ok";
-    if (status === "failed" || status === "timed_out") return "err";
-    if (status === "running") return "run";
-    if (status === "queued") return "warn";
-    return "";
+  async function cancelOne(id: string) {
+    if (!projectId) return;
+    await api.cancelJob(projectId, id);
+    await reload();
+    setMsg("Job отменён");
+  }
+
+  async function cancelSelected() {
+    if (!projectId || selected.size === 0) return;
+    await api.cancelJobsBulk(projectId, [...selected]);
+    setSelected(new Set());
+    await reload();
+    setMsg(`Отменено: ${selected.size}`);
+  }
+
+  function toggle(id: string) {
+    setSelected((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
   }
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>Jobs</h1>
+          <p className="lead">Фильтры, bulk-cancel, детали и логи. Live-обновление очереди.</p>
+        </div>
+        <button className="btn ghost" type="button" onClick={() => setLive((v) => !v)}>
+          {live ? (
+            <span className="live-dot">
+              <i /> live on
+            </span>
+          ) : (
+            "Включить live"
+          )}
+        </button>
+      </div>
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
+
       <form className="panel row" onSubmit={enqueue}>
         <div className="field">
           <label>App</label>
@@ -410,34 +535,150 @@ function JobsPage() {
           Поставить в очередь
         </button>
       </form>
-      {msg ? <p className="muted">{msg}</p> : null}
-      <section className="panel">
-        <table className="table">
-          <thead>
-            <tr>
-              <th>Имя</th>
-              <th>Статус</th>
-              <th>Queue</th>
-              <th>Attempt</th>
-              <th>Создан</th>
-            </tr>
-          </thead>
-          <tbody>
-            {jobs.map((job) => (
-              <tr key={job.id}>
-                <td>{job.name}</td>
-                <td>
-                  <span className={`badge ${statusBadge(job.status)}`}>{job.status}</span>
-                </td>
-                <td>{job.queue}</td>
-                <td>{job.attempt}</td>
-                <td className="muted">{new Date(job.created_at).toLocaleString()}</td>
-              </tr>
+
+      <div className="panel toolbar">
+        <div className="field">
+          <label>Статус</label>
+          <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
+            <option value="">все</option>
+            <option value="queued">queued</option>
+            <option value="running">running</option>
+            <option value="succeeded">succeeded</option>
+            <option value="failed">failed</option>
+            <option value="cancelled">cancelled</option>
+          </select>
+        </div>
+        <div className="field">
+          <label>App</label>
+          <select value={filterApp} onChange={(e) => setFilterApp(e.target.value)}>
+            <option value="">все</option>
+            {apps.map((a) => (
+              <option key={a.id} value={a.id}>
+                {a.name}
+              </option>
             ))}
-          </tbody>
-        </table>
-        {jobs.length === 0 ? <p className="muted">Очередь пустая. Запусти ping для проверки.</p> : null}
-      </section>
+          </select>
+        </div>
+        <div className="field">
+          <label>Поиск по имени</label>
+          <input
+            value={filterQ}
+            onChange={(e) => setFilterQ(e.target.value)}
+            placeholder="ping, sync..."
+          />
+        </div>
+        <button
+          className="btn danger"
+          type="button"
+          disabled={selected.size === 0}
+          onClick={() => cancelSelected().catch((err) => setMsg(err.message))}
+        >
+          Отменить выбранные ({selected.size})
+        </button>
+      </div>
+
+      {msg ? <p className="muted">{msg}</p> : null}
+
+      <div className="split">
+        <section className="panel">
+          <table className="table">
+            <thead>
+              <tr>
+                <th />
+                <th>Имя</th>
+                <th>Статус</th>
+                <th>Queue</th>
+                <th>Attempt</th>
+                <th>Создан</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {jobs.map((job) => (
+                <tr
+                  key={job.id}
+                  className={activeId === job.id ? "selected" : ""}
+                  onClick={() => setActiveId(job.id)}
+                >
+                  <td onClick={(e) => e.stopPropagation()}>
+                    <input
+                      className="check"
+                      type="checkbox"
+                      checked={selected.has(job.id)}
+                      onChange={() => toggle(job.id)}
+                    />
+                  </td>
+                  <td>{job.name}</td>
+                  <td>
+                    <span className={`badge ${statusBadge(job.status)}`}>{job.status}</span>
+                  </td>
+                  <td>{job.queue}</td>
+                  <td>
+                    {job.attempt}/{job.max_attempts}
+                  </td>
+                  <td className="muted">{new Date(job.created_at).toLocaleString()}</td>
+                  <td onClick={(e) => e.stopPropagation()}>
+                    {job.status === "queued" || job.status === "running" ? (
+                      <button
+                        className="btn ghost"
+                        type="button"
+                        onClick={() => cancelOne(job.id).catch((err) => setMsg(err.message))}
+                      >
+                        Отменить
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+          {jobs.length === 0 ? (
+            <p className="muted">Очередь пустая или фильтр ничего не поймал.</p>
+          ) : null}
+        </section>
+
+        <aside className="panel drawer stack-gap">
+          <h2>Детали</h2>
+          {!detail ? (
+            <p className="muted">Кликни job слева — покажем payload, результат и логи.</p>
+          ) : (
+            <>
+              <div>
+                <strong>{detail.name}</strong>{" "}
+                <span className={`badge ${statusBadge(detail.status)}`}>{detail.status}</span>
+              </div>
+              <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
+                {detail.id}
+              </p>
+              {detail.error ? <p className="error">{detail.error}</p> : null}
+              <div className="field">
+                <label>Payload</label>
+                <pre className="log-box">{JSON.stringify(detail.payload, null, 2)}</pre>
+              </div>
+              {detail.result ? (
+                <div className="field">
+                  <label>Result</label>
+                  <pre className="log-box">{JSON.stringify(detail.result, null, 2)}</pre>
+                </div>
+              ) : null}
+              <div className="field">
+                <label>Логи</label>
+                <div className="log-box">
+                  {logs.length === 0 ? (
+                    <span className="muted">Логов пока нет</span>
+                  ) : (
+                    logs.map((l) => (
+                      <div key={l.seq} className={l.stream === "stderr" ? "stderr" : ""}>
+                        [{l.seq}] {l.line}
+                      </div>
+                    ))
+                  )}
+                </div>
+              </div>
+            </>
+          )}
+        </aside>
+      </div>
     </div>
   );
 }
@@ -448,11 +689,23 @@ function WorkersPage() {
 
   useEffect(() => {
     if (!projectId) return;
-    api.workers(projectId).then(setWorkers).catch(console.error);
+    const load = () => api.workers(projectId).then(setWorkers).catch(console.error);
+    load();
+    const id = window.setInterval(load, 5000);
+    return () => window.clearInterval(id);
   }, [projectId]);
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>Workers</h1>
+          <p className="lead">Кто онлайн и когда был последний heartbeat.</p>
+        </div>
+        <span className="live-dot">
+          <i /> live
+        </span>
+      </div>
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
       <section className="panel">
         {workers.length === 0 ? (
@@ -543,9 +796,14 @@ function SettingsPage() {
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>API-ключи</h1>
+          <p className="lead">Для воркеров и агентов. Один раз видишь secret — и всё.</p>
+        </div>
+      </div>
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
       <section className="panel stack-gap">
-        <h2>API-ключи для воркеров</h2>
         <p className="muted">
           Клади ключ в <code>X-FleetKit-Key</code> или в SDK. Не коммить в git.
         </p>
@@ -553,19 +811,7 @@ function SettingsPage() {
           Выпустить ключ
         </button>
         {msg ? <p className="muted">{msg}</p> : null}
-        {secret ? (
-          <pre
-            style={{
-              overflow: "auto",
-              background: "#102033",
-              color: "#d7ffe8",
-              padding: 12,
-              borderRadius: 12,
-            }}
-          >
-            {secret}
-          </pre>
-        ) : null}
+        {secret ? <pre className="log-box">{secret}</pre> : null}
       </section>
     </div>
   );
