@@ -11,6 +11,9 @@ import { SearchPage } from "./pages/SearchPage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { SecretsPage } from "./pages/SecretsPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
+import { HealthPage } from "./pages/HealthPage";
+import { OpsPage } from "./pages/OpsPage";
+import { TemplatesPage } from "./pages/TemplatesPage";
 import { WebhooksPage } from "./pages/WebhooksPage";
 import { ProjectPicker, ProjectProvider, useProject } from "./project";
 
@@ -54,11 +57,14 @@ function Shell({
     ["/workers", t("nav.workers")],
     ["/schedules", t("nav.schedules")],
     ["/webhooks", t("nav.webhooks")],
+    ["/templates", t("nav.templates")],
+    ["/health", t("nav.health")],
     ["/alerts", t("nav.alerts")],
     ["/dlq", t("nav.dlq")],
     ["/secrets", t("nav.secrets")],
     ["/search", t("nav.search")],
     ["/metrics", t("nav.metrics")],
+    ["/ops", t("nav.ops")],
     ["/settings", t("nav.settings")],
   ] as const;
 
@@ -903,6 +909,9 @@ export default function App() {
         <Route path="/search" element={<SearchRoute />} />
         <Route path="/metrics" element={<MetricsRoute />} />
         <Route path="/webhooks" element={<WebhooksPage />} />
+        <Route path="/templates" element={<TemplatesPage />} />
+        <Route path="/health" element={<HealthPage />} />
+        <Route path="/ops" element={<OpsPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

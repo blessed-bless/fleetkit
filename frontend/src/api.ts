@@ -282,4 +282,100 @@ export const api = {
     request<Record<string, number>>(`/api/v1/projects/${projectId}/metrics/snapshot`, {
       method: "POST",
     }),
+  healthChecks: (projectId: string) =>
+    request<
+      Array<{
+        id: string;
+        app_id: string;
+        name: string;
+        kind: string;
+        target: string;
+        interval_seconds: number;
+        timeout_seconds: number;
+        is_enabled: boolean;
+        last_status: string;
+        last_checked_at: string | null;
+        last_error: string;
+      }>
+    >(`/api/v1/projects/${projectId}/health-checks`),
+  createHealthCheck: (
+    projectId: string,
+    body: {
+      app_id: string;
+      name: string;
+      kind?: string;
+      target?: string;
+      interval_seconds?: number;
+      timeout_seconds?: number;
+    },
+  ) =>
+    request(`/api/v1/projects/${projectId}/health-checks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  runHealthCheck: (projectId: string, checkId: string) =>
+    request(`/api/v1/projects/${projectId}/health-checks/${checkId}/run`, {
+      method: "POST",
+    }),
+  templates: (projectId: string) =>
+    request<
+      Array<{
+        id: string;
+        app_id: string;
+        slug: string;
+        name: string;
+        job_name: string;
+        queue: string;
+        priority: number;
+        payload: Record<string, unknown>;
+        max_attempts: number;
+        timeout_seconds: number;
+      }>
+    >(`/api/v1/projects/${projectId}/templates`),
+  createTemplate: (
+    projectId: string,
+    body: {
+      app_id: string;
+      slug: string;
+      name: string;
+      job_name: string;
+      queue?: string;
+      priority?: number;
+      payload?: Record<string, unknown>;
+    },
+  ) =>
+    request(`/api/v1/projects/${projectId}/templates`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  runTemplate: (projectId: string, templateId: string) =>
+    request<{ job_id: string }>(`/api/v1/projects/${projectId}/templates/${templateId}/run`, {
+      method: "POST",
+    }),
+  retention: (projectId: string) =>
+    request<Array<{ id: string; kind: string; keep_days: number; is_enabled: boolean }>>(
+      `/api/v1/projects/${projectId}/retention`,
+    ),
+  patchRetention: (
+    projectId: string,
+    kind: string,
+    body: { keep_days: number; is_enabled: boolean },
+  ) =>
+    request(`/api/v1/projects/${projectId}/retention/${encodeURIComponent(kind)}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  runRetention: (projectId: string) =>
+    request<Record<string, number>>(`/api/v1/projects/${projectId}/retention/run`, {
+      method: "POST",
+    }),
+  flags: (projectId: string) =>
+    request<
+      Array<{ id: string; key: string; enabled: boolean; payload: Record<string, unknown> }>
+    >(`/api/v1/projects/${projectId}/flags`),
+  upsertFlag: (projectId: string, body: { key: string; enabled: boolean }) =>
+    request(`/api/v1/projects/${projectId}/flags`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
 };
