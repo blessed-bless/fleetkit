@@ -9,7 +9,7 @@ from fleetkit import __version__
 
 
 def test_version_bumped():
-    assert __version__.startswith("0.2")
+    assert __version__.startswith("0.3")
 
 
 def test_sign_and_verify_roundtrip():
@@ -31,3 +31,16 @@ def test_fleetkit_has_claim_batch_and_drain():
     assert hasattr(FleetKit, "claim_batch")
     assert hasattr(FleetKit, "drain")
     assert hasattr(FleetKit, "run_loop")
+
+
+def test_management_has_graph_ops():
+    from fleetkit.management import ManagementClient
+
+    for name in (
+        "clone_job",
+        "set_job_priority",
+        "job_dependencies",
+        "add_job_dependency",
+        "enqueue_chain",
+    ):
+        assert hasattr(ManagementClient, name)

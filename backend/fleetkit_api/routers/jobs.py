@@ -8,17 +8,31 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_project_by_api_key, get_project_for_user
 from fleetkit_api.models import App, Job, JobStatus, Project, Worker
-from fleetkit_api.schemas import JobCompleteIn, JobCreate, JobFailIn, JobOut
+from fleetkit_api.schemas import (
+    JobChainCreate,
+    JobCloneIn,
+    JobCompleteIn,
+    JobCreate,
+    JobDependencyCreate,
+    JobDependencyOut,
+    JobFailIn,
+    JobOut,
+    JobPriorityIn,
+)
+from fleetkit_api.services.job_graph import DependencyError, add_dependency, enqueue_chain, list_dependencies
 from fleetkit_api.services.jobs import (
     PolicyDenied,
     cancel_job,
     cancel_jobs_bulk,
     claim_jobs_batch,
     claim_next_job,
+    clone_job,
     complete_job,
     enqueue_job,
     fail_job,
+    get_job_priority,
     retry_job,
+    set_job_priority,
 )
 
 router = APIRouter(tags=["jobs"])
@@ -84,8 +98,17 @@ async def get_job(
     job_id: str,
     project: Project = Depends(get_project_for_user),
     db: AsyncSession = Depends(get_db),
-) -> Job:
-    return await _job_in_project(db, project, job_id)
+) -> JobOut:
+    from fleetkit_api.services.job_graph import dependencies_satisfied
+
+    job = await _job_in_project(db, project, job_id)
+    out = JobOut.model_validate(job)
+    out.priority = await get_job_priority(db, job.id)
+    if job.status == JobStatus.queued:
+        out.blocked = not await dependencies_satisfied(db, job.id)
+    else:
+        out.blocked = False
+    return out
 
 
 @router.post("/projects/{project_id}/jobs/{job_id}/cancel", response_model=JobOut)
@@ -117,6 +140,82 @@ async def retry_one(
     return job
 
 
+@router.post("/projects/{project_id}/jobs/{job_id}/clone", response_model=JobOut, status_code=201)
+async def clone_one(
+    job_id: str,
+    body: JobCloneIn,
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+) -> Job:
+    job = await _job_in_project(db, project, job_id)
+    try:
+        cloned = await clone_job(
+            db,
+            job,
+            name=body.name,
+            payload=body.payload,
+            copy_tags=body.copy_tags,
+        )
+    except PolicyDenied as exc:
+        raise HTTPException(status_code=409, detail=exc.reason) from exc
+    await db.commit()
+    await db.refresh(cloned)
+    return cloned
+
+
+@router.put("/projects/{project_id}/jobs/{job_id}/priority", response_model=JobOut)
+async def set_priority(
+    job_id: str,
+    body: JobPriorityIn,
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+) -> JobOut:
+    job = await _job_in_project(db, project, job_id)
+    try:
+        await set_job_priority(db, job.id, body.priority)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await db.commit()
+    await db.refresh(job)
+    out = JobOut.model_validate(job)
+    out.priority = body.priority
+    return out
+
+
+@router.get("/projects/{project_id}/jobs/{job_id}/dependencies", response_model=list[JobDependencyOut])
+async def get_dependencies(
+    job_id: str,
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+) -> list:
+    await _job_in_project(db, project, job_id)
+    return await list_dependencies(db, job_id)
+
+
+@router.post(
+    "/projects/{project_id}/jobs/{job_id}/dependencies",
+    response_model=JobDependencyOut,
+    status_code=201,
+)
+async def create_dependency(
+    job_id: str,
+    body: JobDependencyCreate,
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+):
+    await _job_in_project(db, project, job_id)
+    await _job_in_project(db, project, body.depends_on_job_id)
+    try:
+        row = await add_dependency(
+            db, job_id=job_id, depends_on_job_id=body.depends_on_job_id
+        )
+    except DependencyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await db.commit()
+    await db.refresh(row)
+    return row
+
+
 @router.post("/projects/{project_id}/jobs/cancel-bulk", response_model=list[JobOut])
 async def cancel_bulk(
     body: JobBulkCancelIn,
@@ -136,6 +235,32 @@ async def cancel_bulk(
     return updated
 
 
+async def _enqueue_with_extras(
+    db: AsyncSession,
+    *,
+    app: App,
+    body: JobCreate,
+) -> Job:
+    job = await enqueue_job(
+        db,
+        app=app,
+        name=body.name,
+        payload=body.payload,
+        queue=body.queue,
+        tags=body.tags,
+        max_attempts=body.max_attempts,
+        timeout_seconds=body.timeout_seconds,
+        scheduled_for=body.scheduled_for,
+    )
+    if body.priority is not None:
+        await set_job_priority(db, job.id, body.priority)
+    if body.depends_on_job_id:
+        await add_dependency(
+            db, job_id=job.id, depends_on_job_id=body.depends_on_job_id
+        )
+    return job
+
+
 @router.post("/projects/{project_id}/apps/{app_id}/jobs", response_model=JobOut, status_code=201)
 async def create_job(
     app_id: str,
@@ -144,23 +269,45 @@ async def create_job(
     db: AsyncSession = Depends(get_db),
 ) -> Job:
     app = await _app_in_project(db, project, app_id)
+    if body.depends_on_job_id:
+        await _job_in_project(db, project, body.depends_on_job_id)
     try:
-        job = await enqueue_job(
-            db,
-            app=app,
-            name=body.name,
-            payload=body.payload,
-            queue=body.queue,
-            tags=body.tags,
-            max_attempts=body.max_attempts,
-            timeout_seconds=body.timeout_seconds,
-            scheduled_for=body.scheduled_for,
-        )
+        job = await _enqueue_with_extras(db, app=app, body=body)
     except PolicyDenied as exc:
         raise HTTPException(status_code=409, detail=f"policy denied: {exc.reason}") from exc
+    except (DependencyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await db.commit()
     await db.refresh(job)
     return job
+
+
+@router.post(
+    "/projects/{project_id}/apps/{app_id}/jobs/chain",
+    status_code=201,
+)
+async def create_job_chain(
+    app_id: str,
+    body: JobChainCreate,
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+) -> dict:
+    app = await _app_in_project(db, project, app_id)
+    try:
+        ids = await enqueue_chain(
+            db,
+            app=app,
+            names=body.names,
+            payload=body.payload,
+            queue=body.queue,
+            tags=body.tags,
+        )
+    except PolicyDenied as exc:
+        raise HTTPException(status_code=409, detail=f"policy denied: {exc.reason}") from exc
+    except DependencyError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    await db.commit()
+    return {"job_ids": ids, "count": len(ids)}
 
 
 @router.post("/agent/apps/{app_id}/jobs", response_model=JobOut, status_code=201)
@@ -171,20 +318,14 @@ async def agent_enqueue(
     db: AsyncSession = Depends(get_db),
 ) -> Job:
     app = await _app_in_project(db, project, app_id)
+    if body.depends_on_job_id:
+        await _job_in_project(db, project, body.depends_on_job_id)
     try:
-        job = await enqueue_job(
-            db,
-            app=app,
-            name=body.name,
-            payload=body.payload,
-            queue=body.queue,
-            tags=body.tags,
-            max_attempts=body.max_attempts,
-            timeout_seconds=body.timeout_seconds,
-            scheduled_for=body.scheduled_for,
-        )
+        job = await _enqueue_with_extras(db, app=app, body=body)
     except PolicyDenied as exc:
         raise HTTPException(status_code=409, detail=f"policy denied: {exc.reason}") from exc
+    except (DependencyError, ValueError) as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     await db.commit()
     await db.refresh(job)
     return job

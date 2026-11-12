@@ -121,6 +121,38 @@ class JobCreate(BaseModel):
     max_attempts: int = Field(default=3, ge=1, le=20)
     timeout_seconds: int = Field(default=300, ge=5, le=86400)
     scheduled_for: datetime | None = None
+    priority: int | None = Field(default=None, ge=0, le=100)
+    depends_on_job_id: str | None = None
+
+
+class JobChainCreate(BaseModel):
+    names: list[str] = Field(min_length=2, max_length=50)
+    payload: dict[str, Any] = Field(default_factory=dict)
+    queue: str = "default"
+    tags: list[str] = Field(default_factory=list, max_length=32)
+
+
+class JobCloneIn(BaseModel):
+    name: str | None = None
+    payload: dict[str, Any] | None = None
+    copy_tags: bool = True
+
+
+class JobPriorityIn(BaseModel):
+    priority: int = Field(ge=0, le=100)
+
+
+class JobDependencyCreate(BaseModel):
+    depends_on_job_id: str
+
+
+class JobDependencyOut(BaseModel):
+    id: str
+    job_id: str
+    depends_on_job_id: str
+    created_at: datetime
+
+    model_config = {"from_attributes": True}
 
 
 class JobCompleteIn(BaseModel):
@@ -150,6 +182,8 @@ class JobOut(BaseModel):
     started_at: datetime | None
     finished_at: datetime | None
     created_at: datetime
+    priority: int | None = None
+    blocked: bool | None = None
 
     model_config = {"from_attributes": True}
 

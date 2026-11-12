@@ -166,6 +166,8 @@ export const api = {
         started_at: string | null;
         finished_at: string | null;
         error: string | null;
+        priority?: number | null;
+        blocked?: boolean | null;
       }>
     >(`/api/v1/projects/${projectId}/jobs${suffix}`);
   },
@@ -185,6 +187,8 @@ export const api = {
       started_at: string | null;
       finished_at: string | null;
       error: string | null;
+      priority?: number | null;
+      blocked?: boolean | null;
     }>(`/api/v1/projects/${projectId}/jobs/${jobId}`),
   jobLogs: (projectId: string, jobId: string, afterSeq = 0) =>
     request<Array<{ id: string; seq: number; stream: string; line: string; created_at: string }>>(
@@ -194,6 +198,38 @@ export const api = {
     request(`/api/v1/projects/${projectId}/jobs/${jobId}/cancel`, { method: "POST" }),
   retryJob: (projectId: string, jobId: string) =>
     request(`/api/v1/projects/${projectId}/jobs/${jobId}/retry`, { method: "POST" }),
+  cloneJob: (
+    projectId: string,
+    jobId: string,
+    body?: { name?: string; copy_tags?: boolean; payload?: Record<string, unknown> },
+  ) =>
+    request(`/api/v1/projects/${projectId}/jobs/${jobId}/clone`, {
+      method: "POST",
+      body: JSON.stringify(body || { copy_tags: true }),
+    }),
+  setJobPriority: (projectId: string, jobId: string, priority: number) =>
+    request(`/api/v1/projects/${projectId}/jobs/${jobId}/priority`, {
+      method: "PUT",
+      body: JSON.stringify({ priority }),
+    }),
+  jobDependencies: (projectId: string, jobId: string) =>
+    request<Array<{ id: string; job_id: string; depends_on_job_id: string; created_at: string }>>(
+      `/api/v1/projects/${projectId}/jobs/${jobId}/dependencies`,
+    ),
+  addJobDependency: (projectId: string, jobId: string, dependsOnJobId: string) =>
+    request(`/api/v1/projects/${projectId}/jobs/${jobId}/dependencies`, {
+      method: "POST",
+      body: JSON.stringify({ depends_on_job_id: dependsOnJobId }),
+    }),
+  enqueueChain: (
+    projectId: string,
+    appId: string,
+    body: { names: string[]; payload?: Record<string, unknown>; queue?: string; tags?: string[] },
+  ) =>
+    request<{ job_ids: string[]; count: number }>(
+      `/api/v1/projects/${projectId}/apps/${appId}/jobs/chain`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
   cancelJobsBulk: (projectId: string, jobIds: string[]) =>
     request(`/api/v1/projects/${projectId}/jobs/cancel-bulk`, {
       method: "POST",
@@ -207,6 +243,8 @@ export const api = {
       payload?: Record<string, unknown>;
       queue?: string;
       tags?: string[];
+      priority?: number;
+      depends_on_job_id?: string;
     },
   ) =>
     request(`/api/v1/projects/${projectId}/apps/${appId}/jobs`, {

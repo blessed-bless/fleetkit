@@ -142,6 +142,50 @@ def retry(project_id: str, job_id: str) -> None:
 
 
 @app.command()
+def clone(project_id: str, job_id: str, name: str | None = None) -> None:
+    data = _client().clone_job(project_id, job_id, name=name)
+    console.print(f"clone -> {data.get('id')} status={data.get('status')}")
+
+
+@app.command("set-priority")
+def set_priority(project_id: str, job_id: str, priority: int) -> None:
+    data = _client().set_job_priority(project_id, job_id, priority)
+    console.print(f"priority -> {data.get('priority')}")
+
+
+@app.command()
+def deps(project_id: str, job_id: str) -> None:
+    rows = _client().job_dependencies(project_id, job_id)
+    if not rows:
+        console.print("no dependencies")
+        return
+    table = Table(title="Dependencies")
+    table.add_column("ID")
+    table.add_column("Depends on")
+    for row in rows:
+        table.add_row(row["id"], row["depends_on_job_id"])
+    console.print(table)
+
+
+@app.command("add-dep")
+def add_dep(project_id: str, job_id: str, depends_on_job_id: str) -> None:
+    data = _client().add_job_dependency(project_id, job_id, depends_on_job_id)
+    console.print(f"dep -> {data.get('id')}")
+
+
+@app.command()
+def chain(
+    project_id: str,
+    app_id: str,
+    names: str = typer.Argument(..., help="Comma-separated job names"),
+    queue: str = "default",
+) -> None:
+    parts = [n.strip() for n in names.split(",") if n.strip()]
+    data = _client().enqueue_chain(project_id, app_id, parts, queue=queue)
+    console.print(f"chain -> {data.get('count')} jobs: {', '.join(data.get('job_ids') or [])}")
+
+
+@app.command()
 def workers(project_id: str) -> None:
     rows = _client().workers(project_id)
     table = Table(title="Workers")
