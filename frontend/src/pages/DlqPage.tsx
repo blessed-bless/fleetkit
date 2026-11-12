@@ -1,19 +1,12 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { EmptyState } from "../components/EmptyState";
 import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
 
-type Project = { id: string; slug: string; name: string };
-
-export function DlqPage({
-  projects,
-  projectId,
-  onProjectChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onProjectChange: (id: string) => void;
-}) {
+export function DlqPage() {
   const { t } = useI18n();
+  const { projectId } = useProject();
   const [items, setItems] = useState<
     Array<{ id: string; job_name: string; error: string; attempts: number; requeued: boolean }>
   >([]);
@@ -49,20 +42,11 @@ export function DlqPage({
           <p className="lead">{t("dlq.lead")}</p>
         </div>
       </div>
-      <div className="field" style={{ maxWidth: 280 }}>
-        <label>{t("project.label")}</label>
-        <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ProjectPicker />
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {items.length === 0 ? (
-          <p className="muted">{t("dlq.empty")}</p>
+          <EmptyState title={t("dlq.empty")} hint={t("dlq.lead")} />
         ) : (
           <table className="table">
             <thead>

@@ -2,19 +2,11 @@ import { useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
 import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
 
-type Project = { id: string; slug: string; name: string };
-
-export function SearchPage({
-  projects,
-  projectId,
-  onProjectChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onProjectChange: (id: string) => void;
-}) {
+export function SearchPage() {
   const { t } = useI18n();
+  const { projectId } = useProject();
   const [q, setQ] = useState("");
   const [result, setResult] = useState<Record<string, unknown> | null>(null);
   const [msg, setMsg] = useState("");
@@ -45,16 +37,7 @@ export function SearchPage({
           <p className="lead">{t("search.lead")}</p>
         </div>
       </div>
-      <div className="field" style={{ maxWidth: 280 }}>
-        <label>{t("project.label")}</label>
-        <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ProjectPicker />
       <form className="panel row" onSubmit={submit}>
         <div className="field">
           <label>{t("search.query")}</label>
