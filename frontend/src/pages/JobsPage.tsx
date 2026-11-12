@@ -27,10 +27,13 @@ export function JobsPage() {
   const [jobName, setJobName] = useState("ping");
   const [jobTags, setJobTags] = useState("");
   const [batchCount, setBatchCount] = useState(1);
+  const [chainNames, setChainNames] = useState("fetch,transform,publish");
+  const [priority, setPriority] = useState(50);
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<JobRow | null>(null);
+  const [deps, setDeps] = useState<Array<{ id: string; depends_on_job_id: string }>>([]);
   const [logs, setLogs] = useState<Array<{ seq: number; stream: string; line: string }>>([]);
   const [liveOn, setLiveOn] = useState(true);
 
@@ -80,11 +83,17 @@ export function JobsPage() {
       return;
     }
     let alive = true;
-    Promise.all([api.job(projectId, activeId), api.jobLogs(projectId, activeId)])
-      .then(([j, l]) => {
+    Promise.all([
+      api.job(projectId, activeId),
+      api.jobLogs(projectId, activeId),
+      api.jobDependencies(projectId, activeId),
+    ])
+      .then(([j, l, d]) => {
         if (!alive) return;
         setDetail({ ...j, tags: j.tags || [] });
         setLogs(l.map((x) => ({ seq: x.seq, stream: x.stream, line: x.line })));
+        setDeps(d.map((x) => ({ id: x.id, depends_on_job_id: x.depends_on_job_id })));
+        if (typeof j.priority === "number") setPriority(j.priority);
       })
       .catch(() => undefined);
     return () => {
@@ -134,6 +143,47 @@ export function JobsPage() {
     await api.retryJob(projectId, id);
     await reload();
     setMsg(t("jobs.retried"));
+  }
+
+  async function cloneOne(id: string) {
+    if (!projectId) return;
+    await api.cloneJob(projectId, id);
+    await reload();
+    setMsg(t("jobs.cloned"));
+  }
+
+  async function enqueueChain(e: FormEvent) {
+    e.preventDefault();
+    if (!projectId || !appId) return;
+    const names = chainNames
+      .split(",")
+      .map((x) => x.trim())
+      .filter(Boolean);
+    if (names.length < 2) {
+      setMsg(t("jobs.chainNeedTwo"));
+      return;
+    }
+    try {
+      const res = await api.enqueueChain(projectId, appId, {
+        names,
+        payload: { source: "dashboard-chain" },
+        tags: jobTags
+          .split(",")
+          .map((x) => x.trim())
+          .filter(Boolean),
+      });
+      setMsg(t("jobs.chainQueued", { n: res.count }));
+      await reload();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("jobs.enqueueFail"));
+    }
+  }
+
+  async function savePriority() {
+    if (!projectId || !activeId) return;
+    await api.setJobPriority(projectId, activeId, priority);
+    await reload();
+    setMsg(t("jobs.prioritySaved", { n: priority }));
   }
 
   async function cancelSelected() {
@@ -208,6 +258,20 @@ export function JobsPage() {
         </div>
         <button className="btn" type="submit" disabled={!appId}>
           {t("jobs.enqueue")}
+        </button>
+      </form>
+
+      <form className="panel row" onSubmit={enqueueChain}>
+        <div className="field" style={{ flex: 1 }}>
+          <label>{t("jobs.chain")}</label>
+          <input
+            value={chainNames}
+            onChange={(e) => setChainNames(e.target.value)}
+            placeholder="fetch,transform,publish"
+          />
+        </div>
+        <button className="btn ghost" type="submit" disabled={!appId}>
+          {t("jobs.enqueueChain")}
         </button>
       </form>
 
@@ -313,6 +377,13 @@ export function JobsPage() {
                         {t("jobs.retry")}
                       </button>
                     ) : null}
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      onClick={() => cloneOne(job.id).catch((err) => setMsg(err.message))}
+                    >
+                      {t("jobs.clone")}
+                    </button>
                   </td>
                 </tr>
               ))}
@@ -330,11 +401,57 @@ export function JobsPage() {
               <div>
                 <strong>{detail.name}</strong>{" "}
                 <span className={`badge ${statusBadge(detail.status)}`}>{detail.status}</span>
+                {detail.blocked ? (
+                  <span className="badge warn" style={{ marginLeft: 6 }}>
+                    {t("jobs.blocked")}
+                  </span>
+                ) : null}
               </div>
               <p className="muted" style={{ margin: 0, fontSize: "0.85rem" }}>
                 {detail.id}
               </p>
               {detail.error ? <p className="error">{detail.error}</p> : null}
+              <div className="field row" style={{ alignItems: "end", gap: 8 }}>
+                <div className="field" style={{ margin: 0 }}>
+                  <label>{t("jobs.priority")}</label>
+                  <input
+                    type="number"
+                    min={0}
+                    max={100}
+                    value={priority}
+                    onChange={(e) => setPriority(Number(e.target.value))}
+                  />
+                </div>
+                <button
+                  className="btn ghost"
+                  type="button"
+                  onClick={() => savePriority().catch((err) => setMsg(err.message))}
+                >
+                  {t("jobs.savePriority")}
+                </button>
+              </div>
+              <div className="field">
+                <label>{t("jobs.deps")}</label>
+                {deps.length === 0 ? (
+                  <p className="muted" style={{ margin: 0 }}>
+                    {t("jobs.depsEmpty")}
+                  </p>
+                ) : (
+                  <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+                    {deps.map((d) => (
+                      <li key={d.id}>
+                        <button
+                          className="btn ghost"
+                          type="button"
+                          onClick={() => setActiveId(d.depends_on_job_id)}
+                        >
+                          {d.depends_on_job_id.slice(0, 8)}…
+                        </button>
+                      </li>
+                    ))}
+                  </ul>
+                )}
+              </div>
               <div className="field">
                 <label>{t("jobs.payload")}</label>
                 <pre className="log-box">{JSON.stringify(detail.payload, null, 2)}</pre>

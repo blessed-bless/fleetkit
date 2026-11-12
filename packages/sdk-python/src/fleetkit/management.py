@@ -126,6 +126,66 @@ class ManagementClient:
     def retry_job(self, project_id: str, job_id: str) -> dict[str, Any]:
         return self._request("POST", f"/api/v1/projects/{project_id}/jobs/{job_id}/retry")
 
+    def clone_job(
+        self,
+        project_id: str,
+        job_id: str,
+        *,
+        name: str | None = None,
+        payload: dict | None = None,
+        copy_tags: bool = True,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"copy_tags": copy_tags}
+        if name is not None:
+            body["name"] = name
+        if payload is not None:
+            body["payload"] = payload
+        return self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/jobs/{job_id}/clone",
+            json=body,
+        )
+
+    def set_job_priority(self, project_id: str, job_id: str, priority: int) -> dict[str, Any]:
+        return self._request(
+            "PUT",
+            f"/api/v1/projects/{project_id}/jobs/{job_id}/priority",
+            json={"priority": priority},
+        )
+
+    def job_dependencies(self, project_id: str, job_id: str) -> list[dict[str, Any]]:
+        return self._request("GET", f"/api/v1/projects/{project_id}/jobs/{job_id}/dependencies")
+
+    def add_job_dependency(
+        self, project_id: str, job_id: str, depends_on_job_id: str
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/jobs/{job_id}/dependencies",
+            json={"depends_on_job_id": depends_on_job_id},
+        )
+
+    def enqueue_chain(
+        self,
+        project_id: str,
+        app_id: str,
+        *,
+        names: list[str],
+        payload: dict | None = None,
+        queue: str = "default",
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/apps/{app_id}/jobs/chain",
+            json={
+                "names": names,
+                "payload": payload or {},
+                "queue": queue,
+                "tags": tags or [],
+            },
+        )
+
     def workers(self, project_id: str) -> list[dict[str, Any]]:
         return self._request("GET", f"/api/v1/projects/{project_id}/workers")
 

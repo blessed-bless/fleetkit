@@ -9,6 +9,10 @@ def test_topo_layers_linear():
     assert "c" in layers[2]
 
 
+def test_topo_layers_empty():
+    assert topological_layers([]) == []
+
+
 def test_rate_limiter():
     lim = MemoryRateLimiter()
     assert lim.allow("k", limit=2, window_seconds=60)

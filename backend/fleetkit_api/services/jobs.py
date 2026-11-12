@@ -160,6 +160,7 @@ async def claim_next_job(
         return None
 
     now = datetime.now(UTC)
+    # Pull a window so we can skip dependency-blocked jobs and prefer priority.
     stmt = (
         select(Job)
         .where(
@@ -168,7 +169,7 @@ async def claim_next_job(
             (Job.scheduled_for.is_(None)) | (Job.scheduled_for <= now),
         )
         .order_by(Job.created_at.asc())
-        .limit(1)
+        .limit(25)
     )
     # SKIP LOCKED is Postgres-only; SQLite smoke mode uses plain SELECT.
     settings_url = str(getattr(db.bind, "url", ""))
@@ -178,9 +179,27 @@ async def claim_next_job(
         stmt = stmt.where(Job.queue.in_(queues))
 
     result = await db.execute(stmt)
-    job = result.scalar_one_or_none()
-    if job is None:
+    candidates = list(result.scalars().all())
+    if not candidates:
         return None
+
+    from fleetkit_api.models_ext import JobPriorityOverride
+    from fleetkit_api.services.job_graph import blocked_job_ids
+
+    job_ids = [j.id for j in candidates]
+    blocked = await blocked_job_ids(db, job_ids)
+    eligible = [j for j in candidates if j.id not in blocked]
+    if not eligible:
+        return None
+
+    pri_rows = (
+        await db.execute(
+            select(JobPriorityOverride).where(JobPriorityOverride.job_id.in_([j.id for j in eligible]))
+        )
+    ).scalars().all()
+    pri_map = {row.job_id: int(row.priority) for row in pri_rows}
+    eligible.sort(key=lambda j: (-pri_map.get(j.id, 50), j.created_at or now))
+    job = eligible[0]
 
     job.status = JobStatus.running
     job.worker_id = worker.id
@@ -195,7 +214,11 @@ async def claim_next_job(
         job_id=job.id,
         kind="job.started",
         message=f"Worker {worker.name} claimed job {job.name}",
-        data={"worker_id": worker.id, "attempt": job.attempt},
+        data={
+            "worker_id": worker.id,
+            "attempt": job.attempt,
+            "priority": pri_map.get(job.id, 50),
+        },
     )
     await db.flush()
     _bust_overview()
@@ -288,6 +311,63 @@ async def retry_job(db: AsyncSession, job: Job) -> Job:
     await db.flush()
     _bust_overview()
     return job
+
+
+async def clone_job(
+    db: AsyncSession,
+    job: Job,
+    *,
+    name: str | None = None,
+    payload: dict | None = None,
+    copy_tags: bool = True,
+) -> Job:
+    """Enqueue a fresh copy of an existing job (new id, attempt=0)."""
+    app = await db.get(App, job.app_id)
+    if app is None:
+        raise PolicyDenied("app missing for clone")
+    tags = list(job.tags or []) if copy_tags else []
+    cloned = await enqueue_job(
+        db,
+        app=app,
+        name=name or job.name,
+        payload=payload if payload is not None else dict(job.payload or {}),
+        queue=job.queue or "default",
+        tags=tags,
+        max_attempts=job.max_attempts,
+        timeout_seconds=job.timeout_seconds,
+    )
+    await emit_event(
+        db,
+        project_id=app.project_id,
+        app_id=app.id,
+        job_id=cloned.id,
+        kind="job.cloned",
+        message=f"Cloned from {job.id}",
+        data={"source_job_id": job.id},
+    )
+    return cloned
+
+
+async def set_job_priority(db: AsyncSession, job_id: str, priority: int):
+    from fleetkit_api.models_ext import JobPriorityOverride
+    from fleetkit_api.services.validators import validate_priority
+
+    priority = validate_priority(priority)
+    row = await db.get(JobPriorityOverride, job_id)
+    if row is None:
+        row = JobPriorityOverride(job_id=job_id, priority=priority)
+        db.add(row)
+    else:
+        row.priority = priority
+    await db.flush()
+    return row
+
+
+async def get_job_priority(db: AsyncSession, job_id: str) -> int:
+    from fleetkit_api.models_ext import JobPriorityOverride
+
+    row = await db.get(JobPriorityOverride, job_id)
+    return int(row.priority) if row else 50
 
 
 async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:

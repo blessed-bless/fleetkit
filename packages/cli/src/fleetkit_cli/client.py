@@ -89,6 +89,62 @@ class CliClient:
         resp.raise_for_status()
         return resp.json()
 
+    def clone_job(
+        self,
+        project_id: str,
+        job_id: str,
+        *,
+        name: str | None = None,
+        copy_tags: bool = True,
+    ) -> dict[str, Any]:
+        body: dict[str, Any] = {"copy_tags": copy_tags}
+        if name is not None:
+            body["name"] = name
+        resp = self._http.post(
+            f"/api/v1/projects/{project_id}/jobs/{job_id}/clone", json=body
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def set_job_priority(self, project_id: str, job_id: str, priority: int) -> dict[str, Any]:
+        resp = self._http.put(
+            f"/api/v1/projects/{project_id}/jobs/{job_id}/priority",
+            json={"priority": priority},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def job_dependencies(self, project_id: str, job_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/jobs/{job_id}/dependencies")
+        resp.raise_for_status()
+        return resp.json()
+
+    def add_job_dependency(
+        self, project_id: str, job_id: str, depends_on_job_id: str
+    ) -> dict[str, Any]:
+        resp = self._http.post(
+            f"/api/v1/projects/{project_id}/jobs/{job_id}/dependencies",
+            json={"depends_on_job_id": depends_on_job_id},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def enqueue_chain(
+        self,
+        project_id: str,
+        app_id: str,
+        names: list[str],
+        *,
+        queue: str = "default",
+        tags: list[str] | None = None,
+    ) -> dict[str, Any]:
+        resp = self._http.post(
+            f"/api/v1/projects/{project_id}/apps/{app_id}/jobs/chain",
+            json={"names": names, "payload": {}, "queue": queue, "tags": tags or []},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def workers(self, project_id: str) -> list[dict[str, Any]]:
         resp = self._http.get(f"/api/v1/projects/{project_id}/workers")
         resp.raise_for_status()
