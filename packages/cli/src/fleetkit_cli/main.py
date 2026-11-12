@@ -136,6 +136,12 @@ def cancel(project_id: str, job_id: str) -> None:
 
 
 @app.command()
+def retry(project_id: str, job_id: str) -> None:
+    data = _client().retry_job(project_id, job_id)
+    console.print(f"retry -> {data.get('status')}")
+
+
+@app.command()
 def workers(project_id: str) -> None:
     rows = _client().workers(project_id)
     table = Table(title="Workers")

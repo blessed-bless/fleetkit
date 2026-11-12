@@ -18,6 +18,7 @@ from fleetkit_api.services.jobs import (
     complete_job,
     enqueue_job,
     fail_job,
+    retry_job,
 )
 
 router = APIRouter(tags=["jobs"])
@@ -95,6 +96,22 @@ async def cancel_one(
 ) -> Job:
     job = await _job_in_project(db, project, job_id)
     await cancel_job(db, job)
+    await db.commit()
+    await db.refresh(job)
+    return job
+
+
+@router.post("/projects/{project_id}/jobs/{job_id}/retry", response_model=JobOut)
+async def retry_one(
+    job_id: str,
+    project: Project = Depends(get_project_for_user),
+    db: AsyncSession = Depends(get_db),
+) -> Job:
+    job = await _job_in_project(db, project, job_id)
+    try:
+        await retry_job(db, job)
+    except PolicyDenied as exc:
+        raise HTTPException(status_code=409, detail=exc.reason) from exc
     await db.commit()
     await db.refresh(job)
     return job

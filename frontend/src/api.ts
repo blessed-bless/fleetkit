@@ -192,6 +192,8 @@ export const api = {
     ),
   cancelJob: (projectId: string, jobId: string) =>
     request(`/api/v1/projects/${projectId}/jobs/${jobId}/cancel`, { method: "POST" }),
+  retryJob: (projectId: string, jobId: string) =>
+    request(`/api/v1/projects/${projectId}/jobs/${jobId}/retry`, { method: "POST" }),
   cancelJobsBulk: (projectId: string, jobIds: string[]) =>
     request(`/api/v1/projects/${projectId}/jobs/cancel-bulk`, {
       method: "POST",
