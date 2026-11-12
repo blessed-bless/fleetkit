@@ -236,6 +236,16 @@ function OverviewPage() {
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p className="muted">{t("overview.loading")}</p>;
 
+  const attention =
+    data.jobs_failed_24h > 0
+      ? { className: "attention critical", text: t("overview.attnFail", { n: data.jobs_failed_24h }) }
+      : data.jobs_queued > 0
+        ? {
+            className: "attention",
+            text: t("overview.attnQueue", { n: data.jobs_queued, w: data.workers_online }),
+          }
+        : { className: "attention quiet", text: t("overview.attnOk") };
+
   return (
     <div className="stack-gap">
       <div className="page-head">
@@ -247,6 +257,7 @@ function OverviewPage() {
           <i /> {live.connected ? t("live.ws") : t("live.polling")}
         </span>
       </div>
+      <div className={attention.className}>{attention.text}</div>
       <div className="grid stats">
         <div className="stat">
           <div className="label">{t("overview.projects")}</div>
@@ -256,19 +267,19 @@ function OverviewPage() {
           <div className="label">{t("overview.apps")}</div>
           <div className="value">{data.apps}</div>
         </div>
-        <div className="stat">
+        <div className={`stat ${data.workers_online > 0 ? "attn-ok" : "attn-warn"}`}>
           <div className="label">{t("overview.workersOnline")}</div>
           <div className="value">{data.workers_online}</div>
         </div>
-        <div className="stat">
+        <div className={`stat ${data.jobs_queued > 0 ? "attn-warn" : ""}`}>
           <div className="label">{t("overview.queued")}</div>
           <div className="value">{data.jobs_queued}</div>
         </div>
-        <div className="stat">
+        <div className={`stat ${data.jobs_running > 0 ? "attn-run" : ""}`}>
           <div className="label">{t("overview.running")}</div>
           <div className="value">{data.jobs_running}</div>
         </div>
-        <div className="stat">
+        <div className={`stat ${data.jobs_failed_24h > 0 ? "attn-err" : "attn-ok"}`}>
           <div className="label">{t("overview.failed24h")}</div>
           <div className="value">{data.jobs_failed_24h}</div>
         </div>
