@@ -1,5 +1,8 @@
 from __future__ import annotations
 
+import hashlib
+import hmac
+import time
 from typing import Any
 
 from fastapi import APIRouter, Depends, Header, HTTPException, Request
@@ -10,9 +13,29 @@ from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_project_for_user
 from fleetkit_api.models import App, Project, WebhookEndpoint
 from fleetkit_api.schemas import WebhookCreate, WebhookOut
-from fleetkit_api.services.jobs import enqueue_job
+from fleetkit_api.services.jobs import PolicyDenied, enqueue_job
 
 router = APIRouter(tags=["webhooks"])
+
+
+def _signature_ok(secret: str, body: bytes, header: str | None) -> bool:
+    """Accept legacy raw secret or `t=<ts>,v1=<hmac>` header."""
+    if not header:
+        return False
+    if hmac.compare_digest(header, secret):
+        return True
+    parts = dict(p.split("=", 1) for p in header.split(",") if "=" in p)
+    ts_raw, sig = parts.get("t"), parts.get("v1")
+    if not ts_raw or not sig:
+        return False
+    try:
+        ts = int(ts_raw)
+    except ValueError:
+        return False
+    if abs(int(time.time()) - ts) > 300:
+        return False
+    expected = hmac.new(secret.encode(), f"{ts}.".encode() + body, hashlib.sha256).hexdigest()
+    return hmac.compare_digest(expected, sig)
 
 
 def _to_out(endpoint: WebhookEndpoint) -> WebhookOut:
@@ -84,7 +107,8 @@ async def ingest_webhook(
     endpoint = result.scalar_one_or_none()
     if endpoint is None:
         raise HTTPException(status_code=404, detail="Webhook не найден")
-    if x_fleetkit_signature != endpoint.secret:
+    raw_body = await request.body()
+    if not _signature_ok(endpoint.secret, raw_body, x_fleetkit_signature):
         raise HTTPException(status_code=401, detail="Подпись не совпала")
 
     app = await db.get(App, endpoint.app_id)
@@ -92,16 +116,22 @@ async def ingest_webhook(
         raise HTTPException(status_code=404, detail="App выключено")
 
     try:
-        payload = await request.json()
-    except Exception:
-        payload = {"raw": (await request.body()).decode("utf-8", errors="replace")}
+        import json
 
-    job = await enqueue_job(
-        db,
-        app=app,
-        name=endpoint.target_job_name,
-        payload={"headers": dict(request.headers), "body": payload, "webhook_id": endpoint.id},
-        queue="webhooks",
-    )
+        payload = json.loads(raw_body.decode("utf-8") or "{}")
+    except Exception:
+        payload = {"raw": raw_body.decode("utf-8", errors="replace")}
+
+    try:
+        job = await enqueue_job(
+            db,
+            app=app,
+            name=endpoint.target_job_name,
+            payload={"headers": dict(request.headers), "body": payload, "webhook_id": endpoint.id},
+            queue="webhooks",
+            tags=["webhook", endpoint.name],
+        )
+    except PolicyDenied as exc:
+        raise HTTPException(status_code=409, detail=f"policy denied: {exc.reason}") from exc
     await db.commit()
     return {"ok": True, "job_id": job.id}

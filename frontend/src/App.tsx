@@ -555,6 +555,7 @@ function JobsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterQ, setFilterQ] = useState("");
   const [jobName, setJobName] = useState("ping");
+  const [jobTags, setJobTags] = useState("");
   const [batchCount, setBatchCount] = useState(1);
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -612,7 +613,7 @@ function JobsPage() {
     Promise.all([api.job(projectId, activeId), api.jobLogs(projectId, activeId)])
       .then(([j, l]) => {
         if (!alive) return;
-        setDetail(j);
+        setDetail({ ...j, tags: j.tags || [] });
         setLogs(l.map((x) => ({ seq: x.seq, stream: x.stream, line: x.line })));
       })
       .catch(() => undefined);
@@ -625,15 +626,23 @@ function JobsPage() {
     e.preventDefault();
     if (!projectId || !appId) return;
     try {
+      const tags = jobTags
+        .split(",")
+        .map((x) => x.trim())
+        .filter(Boolean);
       const n = Math.max(1, Math.min(100, Number(batchCount) || 1));
       if (n === 1) {
-        await api.createJob(projectId, appId, { name: jobName, payload: { source: "dashboard" } });
+        await api.createJob(projectId, appId, {
+          name: jobName,
+          payload: { source: "dashboard" },
+          tags,
+        });
         setMsg(t("jobs.queuedMsg"));
       } else {
         const res = await api.batchJobs(projectId, {
           app_id: appId,
           name: jobName,
-          payloads: Array.from({ length: n }, (_, i) => ({ source: "dashboard", i })),
+          payloads: Array.from({ length: n }, (_, i) => ({ source: "dashboard", i, tags })),
         });
         setMsg(t("jobs.batchQueued", { n: res.count }));
       }
@@ -701,6 +710,14 @@ function JobsPage() {
         <div className="field">
           <label>{t("jobs.name")}</label>
           <input value={jobName} onChange={(e) => setJobName(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label>{t("jobs.tags")}</label>
+          <input
+            value={jobTags}
+            onChange={(e) => setJobTags(e.target.value)}
+            placeholder="demo,smoke"
+          />
         </div>
         <div className="field">
           <label>{t("jobs.batch")}</label>
@@ -866,14 +883,31 @@ function WorkersPage() {
   const { t } = useI18n();
   const { projectId } = useProject();
   const [workers, setWorkers] = useState<Awaited<ReturnType<typeof api.workers>>>([]);
+  const [msg, setMsg] = useState("");
+
+  async function reload() {
+    if (!projectId) return;
+    setWorkers(await api.workers(projectId));
+  }
 
   useEffect(() => {
     if (!projectId) return;
-    const load = () => api.workers(projectId).then(setWorkers).catch(console.error);
-    load();
-    const id = window.setInterval(load, 5000);
+    reload().catch(console.error);
+    const id = window.setInterval(() => reload().catch(console.error), 5000);
     return () => window.clearInterval(id);
   }, [projectId]);
+
+  async function toggleDrain(workerId: string, status: string) {
+    if (!projectId) return;
+    const draining = status !== "draining";
+    try {
+      await api.drainWorker(projectId, workerId, draining);
+      setMsg(draining ? t("workers.drainOn") : t("workers.drainOff"));
+      await reload();
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("workers.drainFail"));
+    }
+  }
 
   return (
     <div className="stack-gap">
@@ -887,6 +921,7 @@ function WorkersPage() {
         </span>
       </div>
       <ProjectPicker />
+      {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {workers.length === 0 ? (
           <EmptyState title={t("workers.empty")} hint={t("workers.lead")} />
@@ -898,6 +933,7 @@ function WorkersPage() {
                 <th>{t("workers.host")}</th>
                 <th>{t("workers.status")}</th>
                 <th>{t("workers.heartbeat")}</th>
+                <th />
               </tr>
             </thead>
             <tbody>
@@ -906,7 +942,11 @@ function WorkersPage() {
                   <td>{w.name}</td>
                   <td>{w.hostname || "—"}</td>
                   <td>
-                    <span className={`badge ${w.status === "online" ? "ok" : "warn"}`}>
+                    <span
+                      className={`badge ${
+                        w.status === "online" ? "ok" : w.status === "draining" ? "warn" : "warn"
+                      }`}
+                    >
                       {w.status}
                     </span>
                   </td>
@@ -914,6 +954,15 @@ function WorkersPage() {
                     {w.last_heartbeat_at
                       ? new Date(w.last_heartbeat_at).toLocaleString()
                       : t("workers.never")}
+                  </td>
+                  <td>
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      onClick={() => toggleDrain(w.id, w.status)}
+                    >
+                      {w.status === "draining" ? t("workers.resume") : t("workers.drain")}
+                    </button>
                   </td>
                 </tr>
               ))}

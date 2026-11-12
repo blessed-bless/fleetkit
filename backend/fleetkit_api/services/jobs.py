@@ -2,16 +2,56 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.models import App, Job, JobStatus, Worker, WorkerStatus
+from fleetkit_api.models_ext import FeatureFlag
 from fleetkit_api.services.cache import overview_cache
 from fleetkit_api.services.events import emit_event
+from fleetkit_api.services.policy_engine import (
+    PolicyContext,
+    evaluate_claim_policy,
+    evaluate_enqueue_policy,
+    suggest_queue,
+)
+
+
+class PolicyDenied(RuntimeError):
+    """Enqueue/claim blocked by policy_engine."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
 
 
 def _bust_overview() -> None:
     overview_cache.invalidate_prefix("overview")
+
+
+async def _feature_flags(db: AsyncSession, project_id: str) -> dict[str, bool]:
+    rows = (
+        await db.execute(select(FeatureFlag).where(FeatureFlag.project_id == project_id))
+    ).scalars().all()
+    return {row.key: bool(row.enabled) for row in rows}
+
+
+async def _queue_depth(db: AsyncSession, app_id: str) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(Job)
+        .where(Job.app_id == app_id, Job.status == JobStatus.queued)
+    )
+    return int(result.scalar_one() or 0)
+
+
+async def _workers_online(db: AsyncSession, app_id: str) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(Worker)
+        .where(Worker.app_id == app_id, Worker.status == WorkerStatus.online)
+    )
+    return int(result.scalar_one() or 0)
 
 
 async def enqueue_job(
@@ -21,10 +61,12 @@ async def enqueue_job(
     name: str,
     payload: dict | None = None,
     queue: str = "default",
+    tags: list[str] | None = None,
     max_attempts: int = 3,
     timeout_seconds: int = 300,
     scheduled_for: datetime | None = None,
     skip_payload_guard: bool = False,
+    skip_policy: bool = False,
 ) -> Job:
     if not skip_payload_guard:
         from fleetkit_api.security_suite.payload_guard import assert_payload_safe
@@ -32,11 +74,34 @@ async def enqueue_job(
         # Demo/fail jobs are allowed to carry attack strings for security drills.
         strict = not name.startswith(("demo.", "security.drill"))
         assert_payload_safe(payload, strict=strict)
+
+    resolved_queue = queue or suggest_queue(name)
+    clean_tags = [t.strip() for t in (tags or []) if t and t.strip()][:32]
+
+    if not skip_policy:
+        flags = await _feature_flags(db, app.project_id)
+        depth = await _queue_depth(db, app.id)
+        online = await _workers_online(db, app.id)
+        decision = evaluate_enqueue_policy(
+            PolicyContext(
+                project_id=app.project_id,
+                app_kind=app.kind,
+                queue_depth=depth,
+                workers_online=online,
+                feature_flags=flags,
+            ),
+            job_name=name,
+            queue=resolved_queue,
+        )
+        if not decision.allow:
+            raise PolicyDenied(decision.reason)
+
     job = Job(
         app_id=app.id,
         name=name,
-        queue=queue,
+        queue=resolved_queue,
         payload=payload or {},
+        tags=clean_tags,
         max_attempts=max_attempts,
         timeout_seconds=timeout_seconds,
         scheduled_for=scheduled_for,
@@ -71,6 +136,29 @@ async def claim_next_job(
     worker: Worker,
     queues: list[str] | None = None,
 ) -> Job | None:
+    if worker.status == WorkerStatus.draining:
+        return None
+
+    flags = await _feature_flags(db, app.project_id)
+    app_requires = {
+        str(k): str(v)
+        for k, v in (app.config or {}).items()
+        if k in {"requires", "require_capability"}
+    }
+    if "require_capability" in app_requires and "requires" not in app_requires:
+        app_requires["requires"] = app_requires["require_capability"]
+    claim_decision = evaluate_claim_policy(
+        PolicyContext(
+            project_id=app.project_id,
+            app_kind=app.kind,
+            feature_flags=flags,
+            labels=app_requires,
+        ),
+        worker_labels={str(k): str(v) for k, v in (worker.labels or {}).items()},
+    )
+    if not claim_decision.allow:
+        return None
+
     now = datetime.now(UTC)
     stmt = (
         select(Job)

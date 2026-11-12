@@ -90,6 +90,17 @@ async def lifespan(_: FastAPI):
     logger.info("FleetKit API %s starting (%s)", __version__, settings.env)
     async with engine.begin() as conn:
         await conn.run_sync(Base.metadata.create_all)
+
+        def _ensure_job_tags(sync_conn) -> None:
+            # create_all does not ALTER existing tables — add tags for upgrades.
+            try:
+                sync_conn.exec_driver_sql(
+                    "ALTER TABLE jobs ADD COLUMN tags JSON DEFAULT '[]'"
+                )
+            except Exception:
+                pass
+
+        await conn.run_sync(_ensure_job_tags)
     await ensure_bootstrap_admin()
     stop = asyncio.Event()
     task = asyncio.create_task(_scheduler_loop(stop))

@@ -32,26 +32,113 @@ class CliClient:
         resp.raise_for_status()
         return resp.json()
 
+    def create_project(self, name: str, slug: str, description: str = "") -> dict[str, Any]:
+        resp = self._http.post(
+            "/api/v1/projects",
+            json={"name": name, "slug": slug, "description": description},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def apps(self, project_id: str) -> list[dict[str, Any]]:
         resp = self._http.get(f"/api/v1/projects/{project_id}/apps")
         resp.raise_for_status()
         return resp.json()
 
-    def enqueue(self, project_id: str, app_id: str, name: str, payload: dict | None = None) -> dict:
+    def enqueue(
+        self,
+        project_id: str,
+        app_id: str,
+        name: str,
+        payload: dict | None = None,
+        tags: list[str] | None = None,
+    ) -> dict:
         resp = self._http.post(
             f"/api/v1/projects/{project_id}/apps/{app_id}/jobs",
-            json={"name": name, "payload": payload or {}},
+            json={"name": name, "payload": payload or {}, "tags": tags or []},
         )
         resp.raise_for_status()
         return resp.json()
 
-    def jobs(self, project_id: str) -> list[dict[str, Any]]:
-        resp = self._http.get(f"/api/v1/projects/{project_id}/jobs")
+    def jobs(
+        self,
+        project_id: str,
+        *,
+        status: str | None = None,
+        tag: str | None = None,
+        q: str | None = None,
+    ) -> list[dict[str, Any]]:
+        params: dict[str, Any] = {}
+        if status:
+            params["status"] = status
+        if tag:
+            params["tag"] = tag
+        if q:
+            params["q"] = q
+        resp = self._http.get(f"/api/v1/projects/{project_id}/jobs", params=params)
+        resp.raise_for_status()
+        return resp.json()
+
+    def cancel_job(self, project_id: str, job_id: str) -> dict[str, Any]:
+        resp = self._http.post(f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel")
         resp.raise_for_status()
         return resp.json()
 
     def workers(self, project_id: str) -> list[dict[str, Any]]:
         resp = self._http.get(f"/api/v1/projects/{project_id}/workers")
+        resp.raise_for_status()
+        return resp.json()
+
+    def drain_worker(self, project_id: str, worker_id: str, draining: bool = True) -> dict:
+        resp = self._http.post(
+            f"/api/v1/projects/{project_id}/workers/{worker_id}/drain",
+            json={"draining": draining},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
+    def schedules(self, project_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/schedules")
+        resp.raise_for_status()
+        return resp.json()
+
+    def webhooks(self, project_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/webhooks")
+        resp.raise_for_status()
+        return resp.json()
+
+    def health_checks(self, project_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/health-checks")
+        resp.raise_for_status()
+        return resp.json()
+
+    def run_health(self, project_id: str, check_id: str) -> dict[str, Any]:
+        resp = self._http.post(f"/api/v1/projects/{project_id}/health-checks/{check_id}/run")
+        resp.raise_for_status()
+        return resp.json()
+
+    def templates(self, project_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/templates")
+        resp.raise_for_status()
+        return resp.json()
+
+    def run_template(self, project_id: str, template_id: str) -> dict[str, Any]:
+        resp = self._http.post(f"/api/v1/projects/{project_id}/templates/{template_id}/run")
+        resp.raise_for_status()
+        return resp.json()
+
+    def quotas(self, project_id: str) -> dict[str, Any]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/quotas")
+        resp.raise_for_status()
+        return resp.json()
+
+    def export_project(self, project_id: str) -> dict[str, Any]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/export")
+        resp.raise_for_status()
+        return resp.json()
+
+    def secrets(self, project_id: str) -> list[dict[str, Any]]:
+        resp = self._http.get(f"/api/v1/projects/{project_id}/secrets")
         resp.raise_for_status()
         return resp.json()
 
