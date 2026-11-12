@@ -1,0 +1,47 @@
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+venv/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+
+# Node
+node_modules/
+frontend/dist/
+*.local
+.npm/
+
+# Env / secrets
+.env
+.env.*
+!.env.example
+!.env.docker.example
+*.pem
+*.key
+
+# IDE / OS
+.idea/
+.vscode/
+.DS_Store
+Thumbs.db
+
+# Runtime
+data/
+*.sqlite3
+*.db
+fleetkit.dev.db
+backend/fleetkit.dev.db
+backend/.venv/
+logs/
+tmp/
+.fleetkit/
+
+# Docker
+docker-compose.override.yml
