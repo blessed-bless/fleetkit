@@ -230,3 +230,29 @@ class ManagementClient:
 
     def requeue(self, project_id: str, dlq_id: str) -> dict[str, Any]:
         return self._request("POST", f"/api/v1/projects/{project_id}/dead-letters/{dlq_id}/requeue")
+
+    def members(self, project_id: str) -> list[dict[str, Any]]:
+        return self._request("GET", f"/api/v1/projects/{project_id}/members")
+
+    def update_member_role(self, project_id: str, member_id: str, role: str) -> dict[str, Any]:
+        return self._request(
+            "PATCH",
+            f"/api/v1/projects/{project_id}/members/{member_id}",
+            json={"role": role},
+        )
+
+    def remove_member(self, project_id: str, member_id: str) -> None:
+        self._request("DELETE", f"/api/v1/projects/{project_id}/members/{member_id}")
+
+    def create_invite(self, project_id: str, email: str, role: str = "viewer") -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/invites",
+            json={"email": email, "role": role},
+        )
+
+    def accept_invite(self, token: str) -> dict[str, Any]:
+        return self._request("POST", f"/api/v1/invites/{token}/accept")
+
+    def evaluate_alerts(self, project_id: str) -> dict[str, Any]:
+        return self._request("POST", f"/api/v1/projects/{project_id}/alerts/evaluate")

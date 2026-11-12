@@ -44,10 +44,18 @@ export function AlertsPage() {
     e.preventDefault();
     const config =
       channelKind === "telegram"
-        ? { chat_id: channelTarget }
+        ? (() => {
+            const [botToken, chatId] = channelTarget.split("|", 2);
+            return chatId
+              ? { bot_token: botToken.trim(), chat_id: chatId.trim() }
+              : { chat_id: channelTarget.trim() };
+          })()
         : channelKind === "email"
-          ? { to: channelTarget }
-          : { url: channelTarget };
+          ? { to: channelTarget.trim() }
+          : {
+              url: channelTarget.trim(),
+              ...(channelTarget.includes("hooks.slack.com") ? { format: "slack" } : {}),
+            };
     await api.createChannel(projectId, { name: channelName, kind: channelKind, config });
     setMsg(t("alerts.channelAdded"));
     await reload(projectId);

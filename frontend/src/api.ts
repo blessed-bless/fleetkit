@@ -483,14 +483,38 @@ export const api = {
       body: JSON.stringify(body),
     }),
   members: (projectId: string) =>
-    request<Array<{ id: string; user_id: string; role: string; created_at: string }>>(
-      `/api/v1/projects/${projectId}/members`,
-    ),
+    request<
+      Array<{ id: string; user_id: string; email?: string | null; role: string; created_at: string }>
+    >(`/api/v1/projects/${projectId}/members`),
+  updateMemberRole: (projectId: string, memberId: string, role: string) =>
+    request(`/api/v1/projects/${projectId}/members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (projectId: string, memberId: string) =>
+    request(`/api/v1/projects/${projectId}/members/${memberId}`, { method: "DELETE" }),
   createInvite: (projectId: string, body: { email: string; role?: string }) =>
     request<{ id: string; email: string; role: string; token: string }>(
       `/api/v1/projects/${projectId}/invites`,
       { method: "POST", body: JSON.stringify(body) },
     ),
+  projectInvites: (projectId: string) =>
+    request<
+      Array<{ id: string; email: string; role: string; token: string; accepted: boolean; created_at: string }>
+    >(`/api/v1/projects/${projectId}/invites`),
+  myInvites: () =>
+    request<
+      Array<{
+        id: string;
+        project_id?: string;
+        email: string;
+        role: string;
+        token: string;
+        accepted: boolean;
+      }>
+    >(`/api/v1/me/invites`),
+  acceptInvite: (token: string) =>
+    request(`/api/v1/invites/${encodeURIComponent(token)}/accept`, { method: "POST" }),
   batchJobs: (
     projectId: string,
     body: { app_id: string; name: string; payloads: Array<Record<string, unknown>> },

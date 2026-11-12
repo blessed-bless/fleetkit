@@ -11,9 +11,14 @@ export function OpsPage() {
   const [retention, setRetention] = useState<Awaited<ReturnType<typeof api.retention>>>([]);
   const [flags, setFlags] = useState<Awaited<ReturnType<typeof api.flags>>>([]);
   const [members, setMembers] = useState<Awaited<ReturnType<typeof api.members>>>([]);
+  const [pendingInvites, setPendingInvites] = useState<
+    Awaited<ReturnType<typeof api.projectInvites>>
+  >([]);
+  const [myInvites, setMyInvites] = useState<Awaited<ReturnType<typeof api.myInvites>>>([]);
   const [flagKey, setFlagKey] = useState("beta.ui");
   const [flagOn, setFlagOn] = useState(false);
   const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("viewer");
   const [inviteToken, setInviteToken] = useState("");
   const [quotas, setQuotas] = useState<Record<string, unknown> | null>(null);
   const [exportJson, setExportJson] = useState("");
@@ -21,16 +26,20 @@ export function OpsPage() {
   const [msg, setMsg] = useState("");
 
   async function reload(id: string) {
-    const [r, f, m, q] = await Promise.all([
+    const [r, f, m, q, inv, mine] = await Promise.all([
       api.retention(id),
       api.flags(id),
       api.members(id),
       api.quotas(id),
+      api.projectInvites(id).catch(() => []),
+      api.myInvites().catch(() => []),
     ]);
     setRetention(r);
     setFlags(f);
     setMembers(m);
     setQuotas(q);
+    setPendingInvites(inv);
+    setMyInvites(mine);
   }
 
   useEffect(() => {
@@ -223,6 +232,35 @@ export function OpsPage() {
 
       <section className="panel stack-gap">
         <h2 style={{ margin: 0 }}>{t("ops.members")}</h2>
+        {myInvites.length > 0 ? (
+          <div className="stack-gap">
+            <p className="muted" style={{ margin: 0 }}>
+              {t("ops.myInvites")}
+            </p>
+            {myInvites.map((inv) => (
+              <div className="row" key={inv.id} style={{ alignItems: "center" }}>
+                <span>
+                  {inv.email} → {inv.role}
+                </span>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.acceptInvite(inv.token);
+                      setMsg(t("ops.inviteAccepted"));
+                      if (projectId) await reload(projectId);
+                    } catch (err) {
+                      setMsg(err instanceof Error ? err.message : t("ops.inviteAcceptFail"));
+                    }
+                  }}
+                >
+                  {t("ops.acceptInvite")}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
         <form
           className="row"
           onSubmit={async (e) => {
@@ -231,7 +269,7 @@ export function OpsPage() {
             try {
               const inv = await api.createInvite(projectId, {
                 email: inviteEmail,
-                role: "viewer",
+                role: inviteRole,
               });
               setInviteToken(inv.token);
               setMsg(t("ops.invited"));
@@ -251,26 +289,89 @@ export function OpsPage() {
               required
             />
           </div>
+          <div className="field">
+            <label>{t("ops.role")}</label>
+            <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              <option value="viewer">viewer</option>
+              <option value="operator">operator</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
           <button className="btn" type="submit">
             {t("ops.invite")}
           </button>
         </form>
         {inviteToken ? <pre className="log-box">{inviteToken}</pre> : null}
+        {pendingInvites.length > 0 ? (
+          <div>
+            <p className="muted">{t("ops.pendingInvites")}</p>
+            <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              {pendingInvites.map((inv) => (
+                <li key={inv.id}>
+                  {inv.email} ({inv.role})
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
         {members.length === 0 ? (
           <p className="muted">{t("ops.membersEmpty")}</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>user_id</th>
+                <th>{t("ops.memberEmail")}</th>
                 <th>{t("ops.role")}</th>
+                <th />
               </tr>
             </thead>
             <tbody>
               {members.map((m) => (
                 <tr key={m.id}>
-                  <td className="muted">{m.user_id}</td>
-                  <td>{m.role}</td>
+                  <td>{m.email || m.user_id}</td>
+                  <td>
+                    {m.role === "owner" ? (
+                      m.role
+                    ) : (
+                      <select
+                        value={m.role}
+                        onChange={async (e) => {
+                          if (!projectId) return;
+                          try {
+                            await api.updateMemberRole(projectId, m.id, e.target.value);
+                            setMsg(t("ops.roleUpdated"));
+                            await reload(projectId);
+                          } catch (err) {
+                            setMsg(err instanceof Error ? err.message : t("ops.roleFail"));
+                          }
+                        }}
+                      >
+                        <option value="viewer">viewer</option>
+                        <option value="operator">operator</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    )}
+                  </td>
+                  <td>
+                    {m.role !== "owner" ? (
+                      <button
+                        className="btn ghost"
+                        type="button"
+                        onClick={async () => {
+                          if (!projectId) return;
+                          try {
+                            await api.removeMember(projectId, m.id);
+                            setMsg(t("ops.memberRemoved"));
+                            await reload(projectId);
+                          } catch (err) {
+                            setMsg(err instanceof Error ? err.message : t("ops.memberRemoveFail"));
+                          }
+                        }}
+                      >
+                        {t("ops.remove")}
+                      </button>
+                    ) : null}
+                  </td>
                 </tr>
               ))}
             </tbody>
