@@ -136,4 +136,56 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  alertRules: (projectId: string) =>
+    request<Array<{ id: string; name: string; expression: string; severity: string }>>(
+      `/api/v1/projects/${projectId}/alert-rules`,
+    ),
+  alertFires: (projectId: string) =>
+    request<Array<{ id: string; message: string; created_at: string }>>(
+      `/api/v1/projects/${projectId}/alert-fires`,
+    ),
+  createAlertRule: (
+    projectId: string,
+    body: { name: string; expression: string; severity?: string },
+  ) =>
+    request(`/api/v1/projects/${projectId}/alert-rules`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  evaluateAlerts: (projectId: string) =>
+    request<{ fired: number }>(`/api/v1/projects/${projectId}/alerts/evaluate`, {
+      method: "POST",
+    }),
+  deadLetters: (projectId: string) =>
+    request<
+      Array<{ id: string; job_name: string; error: string; attempts: number; requeued: boolean }>
+    >(`/api/v1/projects/${projectId}/dead-letters`),
+  requeueDeadLetter: (projectId: string, dlqId: string) =>
+    request<{ job_id: string }>(`/api/v1/projects/${projectId}/dead-letters/${dlqId}/requeue`, {
+      method: "POST",
+    }),
+  secrets: (projectId: string) =>
+    request<Array<{ id: string; name: string; description: string }>>(
+      `/api/v1/projects/${projectId}/secrets`,
+    ),
+  upsertSecret: (
+    projectId: string,
+    body: { name: string; value: string; description?: string },
+  ) =>
+    request(`/api/v1/projects/${projectId}/secrets`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  revealSecret: (projectId: string, name: string) =>
+    request<{ name: string; value: string }>(
+      `/api/v1/projects/${projectId}/secrets/${encodeURIComponent(name)}/reveal`,
+    ),
+  search: (projectId: string, q: string) =>
+    request<Record<string, unknown>>(
+      `/api/v1/projects/${projectId}/search?q=${encodeURIComponent(q)}`,
+    ),
+  snapshotMetrics: (projectId: string) =>
+    request<Record<string, number>>(`/api/v1/projects/${projectId}/metrics/snapshot`, {
+      method: "POST",
+    }),
 };

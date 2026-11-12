@@ -113,12 +113,17 @@ async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
 
 
 async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True) -> Job:
+    from fleetkit_api.services.backoff import next_retry_at
+    from fleetkit_api.services.dlq import push_dead_letter
+    from fleetkit_api.services.live import live_hub
+
     app = await db.get(App, job.app_id)
     if retry and job.attempt < job.max_attempts:
         job.status = JobStatus.queued
         job.worker_id = None
         job.started_at = None
         job.error = error
+        job.scheduled_for = next_retry_at(job.attempt)
         kind = "job.retry"
         message = f"Job {job.name} failed, re-queued ({job.attempt}/{job.max_attempts})"
     else:
@@ -127,6 +132,8 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
         job.finished_at = datetime.now(UTC)
         kind = "job.failed"
         message = f"Job {job.name} failed: {error[:200]}"
+        if app:
+            await push_dead_letter(db, job=job, error=error)
 
     if app:
         await emit_event(
@@ -138,6 +145,11 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
             kind=kind,
             message=message,
             data={"error": error},
+        )
+        await live_hub.publish(
+            app.project_id,
+            kind,
+            {"job_id": job.id, "name": job.name, "status": job.status.value},
         )
     await db.flush()
     return job

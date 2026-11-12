@@ -12,8 +12,14 @@ Self-hosted control plane for a fleet of bots, Python workers, cron jobs and inb
 - **Schedules** — cron → job
 - **Webhooks** — публичный ingest с секретом → job
 - **Dashboard** — React (обзор, apps, jobs, workers, ключи)
-- **SDK** — `packages/sdk-python`
-- **Examples** — HTTP worker и Telegram bot
+- **SDK** — `packages/sdk-python` (sync + async)
+- **CLI** — `packages/cli` (`fleetkit login|overview|enqueue|dlq|...`)
+- **Alerts** — правила вида `queue.depth>20`, каналы Telegram/webhook
+- **Secrets vault** — шифрованные секреты проекта
+- **DLQ** — dead letter + requeue
+- **Logs / metrics / search / health checks / retention / feature flags**
+- **Live WebSocket** — `/api/v1/ws/projects/{id}?token=...`
+- **Examples** — HTTP worker, Telegram bot, 25 recipe workers
 
 ## Быстрый старт (Docker)
 
