@@ -378,4 +378,14 @@ export const api = {
       method: "PUT",
       body: JSON.stringify(body),
     }),
+  audit: (projectId: string) =>
+    request<
+      Array<{
+        id: string;
+        action: string;
+        resource_type: string;
+        resource_id: string;
+        created_at: string;
+      }>
+    >(`/api/v1/projects/${projectId}/audit`),
 };

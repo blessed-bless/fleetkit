@@ -1,20 +1,13 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import { EmptyState } from "../components/EmptyState";
 import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
 
-type Project = { id: string; slug: string; name: string };
-
-export function SchedulesPage({
-  projects,
-  projectId,
-  onProjectChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onProjectChange: (id: string) => void;
-}) {
+export function SchedulesPage() {
   const { t } = useI18n();
+  const { projectId } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.schedules>>>([]);
   const [appId, setAppId] = useState("");
@@ -60,16 +53,7 @@ export function SchedulesPage({
           <p className="lead">{t("schedules.lead")}</p>
         </div>
       </div>
-      <div className="field" style={{ maxWidth: 280 }}>
-        <label>{t("project.label")}</label>
-        <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ProjectPicker />
       <form className="panel row" onSubmit={create}>
         <div className="field">
           <label>{t("jobs.app")}</label>
@@ -96,7 +80,7 @@ export function SchedulesPage({
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {items.length === 0 ? (
-          <p className="muted">{t("schedules.empty")}</p>
+          <EmptyState title={t("schedules.empty")} hint={t("schedules.lead")} />
         ) : (
           <table className="table">
             <thead>

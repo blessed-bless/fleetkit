@@ -11,6 +11,7 @@ import { SearchPage } from "./pages/SearchPage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { SecretsPage } from "./pages/SecretsPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
+import { AuditPage } from "./pages/AuditPage";
 import { HealthPage } from "./pages/HealthPage";
 import { OpsPage } from "./pages/OpsPage";
 import { TemplatesPage } from "./pages/TemplatesPage";
@@ -65,6 +66,7 @@ function Shell({
     ["/search", t("nav.search")],
     ["/metrics", t("nav.metrics")],
     ["/ops", t("nav.ops")],
+    ["/audit", t("nav.audit")],
     ["/settings", t("nav.settings")],
   ] as const;
 
@@ -748,7 +750,7 @@ function WorkersPage() {
       <ProjectPicker />
       <section className="panel">
         {workers.length === 0 ? (
-          <p className="muted">{t("workers.empty")}</p>
+          <EmptyState title={t("workers.empty")} hint={t("workers.lead")} />
         ) : (
           <table className="table">
             <thead>
@@ -781,46 +783,6 @@ function WorkersPage() {
         )}
       </section>
     </div>
-  );
-}
-
-function AlertsRoute() {
-  const { projects, projectId, setProjectId } = useProject();
-  return (
-    <AlertsPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
-  );
-}
-
-function DlqRoute() {
-  const { projects, projectId, setProjectId } = useProject();
-  return <DlqPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />;
-}
-
-function SecretsRoute() {
-  const { projects, projectId, setProjectId } = useProject();
-  return (
-    <SecretsPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
-  );
-}
-
-function SearchRoute() {
-  const { projects, projectId, setProjectId } = useProject();
-  return (
-    <SearchPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
-  );
-}
-
-function MetricsRoute() {
-  const { projects, projectId, setProjectId } = useProject();
-  return (
-    <MetricsPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
-  );
-}
-
-function SchedulesRoute() {
-  const { projects, projectId, setProjectId } = useProject();
-  return (
-    <SchedulesPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
   );
 }
 
@@ -902,16 +864,17 @@ export default function App() {
         <Route path="/apps" element={<AppsPage />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/workers" element={<WorkersPage />} />
-        <Route path="/schedules" element={<SchedulesRoute />} />
-        <Route path="/alerts" element={<AlertsRoute />} />
-        <Route path="/dlq" element={<DlqRoute />} />
-        <Route path="/secrets" element={<SecretsRoute />} />
-        <Route path="/search" element={<SearchRoute />} />
-        <Route path="/metrics" element={<MetricsRoute />} />
+        <Route path="/schedules" element={<SchedulesPage />} />
+        <Route path="/alerts" element={<AlertsPage />} />
+        <Route path="/dlq" element={<DlqPage />} />
+        <Route path="/secrets" element={<SecretsPage />} />
+        <Route path="/search" element={<SearchPage />} />
+        <Route path="/metrics" element={<MetricsPage />} />
         <Route path="/webhooks" element={<WebhooksPage />} />
         <Route path="/templates" element={<TemplatesPage />} />
         <Route path="/health" element={<HealthPage />} />
         <Route path="/ops" element={<OpsPage />} />
+        <Route path="/audit" element={<AuditPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

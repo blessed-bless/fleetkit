@@ -2,19 +2,11 @@ import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
 import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
 
-type Project = { id: string; slug: string; name: string };
-
-export function AlertsPage({
-  projects,
-  projectId,
-  onProjectChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onProjectChange: (id: string) => void;
-}) {
+export function AlertsPage() {
   const { t } = useI18n();
+  const { projectId } = useProject();
   const [rules, setRules] = useState<any[]>([]);
   const [fires, setFires] = useState<any[]>([]);
   const [name, setName] = useState("Queue too deep");
@@ -52,16 +44,7 @@ export function AlertsPage({
           <p className="lead">{t("alerts.lead")}</p>
         </div>
       </div>
-      <div className="field" style={{ maxWidth: 280 }}>
-        <label>{t("project.label")}</label>
-        <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ProjectPicker />
       <form className="panel row" onSubmit={create}>
         <div className="field">
           <label>{t("alerts.name")}</label>

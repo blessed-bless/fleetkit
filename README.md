@@ -11,7 +11,7 @@ Self-hosted control plane for a fleet of bots, Python workers, cron jobs and inb
 - **Workers** — register + heartbeat + claim/complete/fail
 - **Schedules** — cron → job
 - **Webhooks** — публичный ingest с секретом → job
-- **Dashboard** — React (обзор, apps, jobs, workers, ключи)
+- **Dashboard** — React (обзор, apps, jobs, workers, schedules, webhooks, templates, health, ops, audit, ключи)
 - **SDK** — `packages/sdk-python` (sync + async)
 - **CLI** — `packages/cli` (`fleetkit login|overview|enqueue|dlq|...`)
 - **Alerts** — правила вида `queue.depth>20`, каналы Telegram/webhook
