@@ -231,6 +231,18 @@ class ManagementClient:
     def requeue(self, project_id: str, dlq_id: str) -> dict[str, Any]:
         return self._request("POST", f"/api/v1/projects/{project_id}/dead-letters/{dlq_id}/requeue")
 
+    def discard_dead_letter(self, project_id: str, dlq_id: str) -> dict[str, Any]:
+        return self._request(
+            "POST", f"/api/v1/projects/{project_id}/dead-letters/{dlq_id}/discard"
+        )
+
+    def requeue_dead_letters_bulk(self, project_id: str, dlq_ids: list[str]) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/projects/{project_id}/dead-letters/requeue-bulk",
+            json={"dlq_ids": dlq_ids},
+        )
+
     def members(self, project_id: str) -> list[dict[str, Any]]:
         return self._request("GET", f"/api/v1/projects/{project_id}/members")
 

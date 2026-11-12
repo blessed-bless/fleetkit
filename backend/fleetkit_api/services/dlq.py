@@ -81,3 +81,31 @@ async def list_dead_letters(
         stmt = stmt.where(DeadLetter.requeued.is_(False))
     result = await db.execute(stmt)
     return list(result.scalars().all())
+
+
+async def discard_dead_letter(db: AsyncSession, item: DeadLetter) -> DeadLetter:
+    if item.requeued:
+        raise ValueError("already requeued")
+    item.requeued = True
+    item.error = (item.error or "") + " [discarded]"
+    await emit_event(
+        db,
+        project_id=item.project_id,
+        app_id=item.app_id,
+        job_id=item.job_id,
+        kind="dlq.discarded",
+        message=f"Dead letter {item.id} discarded",
+    )
+    await db.flush()
+    return item
+
+
+async def requeue_dead_letters_bulk(
+    db: AsyncSession, items: list[DeadLetter]
+) -> list[Job]:
+    out: list[Job] = []
+    for item in items:
+        if item.requeued:
+            continue
+        out.append(await requeue_dead_letter(db, item))
+    return out

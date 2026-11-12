@@ -48,14 +48,17 @@ async def create_schedule(
     app = await db.get(App, app_id)
     if app is None or app.project_id != project.id:
         raise HTTPException(status_code=404, detail="App не найдено")
+    from fleetkit_api.services.validators import validate_cron
+
     try:
-        next_run = compute_next_run(body.cron)
+        cron = validate_cron(body.cron)
+        next_run = compute_next_run(cron)
     except (ValueError, KeyError) as exc:
         raise HTTPException(status_code=400, detail=f"Неверный cron: {exc}") from exc
     schedule = Schedule(
         app_id=app.id,
         name=body.name,
-        cron=body.cron,
+        cron=cron,
         timezone=body.timezone,
         payload=body.payload,
         is_enabled=body.is_enabled,
@@ -85,9 +88,12 @@ async def patch_schedule(
     if body.is_enabled is not None:
         schedule.is_enabled = body.is_enabled
     if body.cron is not None:
+        from fleetkit_api.services.validators import validate_cron
+
         try:
-            schedule.cron = body.cron
-            schedule.next_run_at = compute_next_run(body.cron)
+            cron = validate_cron(body.cron)
+            schedule.cron = cron
+            schedule.next_run_at = compute_next_run(cron)
         except (ValueError, KeyError) as exc:
             raise HTTPException(status_code=400, detail=f"Неверный cron: {exc}") from exc
     await db.commit()
