@@ -6,6 +6,7 @@ from contextlib import asynccontextmanager
 
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.middleware.gzip import GZipMiddleware
 
 # Register extended tables for create_all
 import fleetkit_api.models_ext as _models_ext  # noqa: F401
@@ -115,6 +116,8 @@ def create_app() -> FastAPI:
     )
     app.add_middleware(RequestIdMiddleware)
     app.add_middleware(AgentRateLimitMiddleware)
+    # Compress list/overview JSON — big win on jobs/events payloads over the wire.
+    app.add_middleware(GZipMiddleware, minimum_size=800)
     for module in (
         auth,
         projects,
