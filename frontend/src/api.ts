@@ -362,6 +362,10 @@ export const api = {
     request<{ name: string; value: string }>(
       `/api/v1/projects/${projectId}/secrets/${encodeURIComponent(name)}/reveal`,
     ),
+  deleteSecret: (projectId: string, name: string) =>
+    request(`/api/v1/projects/${projectId}/secrets/${encodeURIComponent(name)}`, {
+      method: "DELETE",
+    }),
   search: (projectId: string, q: string) =>
     request<Record<string, unknown>>(
       `/api/v1/projects/${projectId}/search?q=${encodeURIComponent(q)}`,

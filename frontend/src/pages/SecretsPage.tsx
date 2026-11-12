@@ -30,8 +30,21 @@ export function SecretsPage() {
   }
 
   async function reveal(secretName: string) {
+    if (!projectId) return;
     const res = await api.revealSecret(projectId, secretName);
     setRevealed(`${res.name}=${res.value}`);
+  }
+
+  async function remove(secretName: string) {
+    if (!projectId) return;
+    try {
+      await api.deleteSecret(projectId, secretName);
+      setMsg(t("secrets.deleted"));
+      if (revealed.startsWith(`${secretName}=`)) setRevealed("");
+      await reload(projectId);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("secrets.deleteFail"));
+    }
   }
 
   return (
@@ -72,9 +85,12 @@ export function SecretsPage() {
               <tr key={item.id}>
                 <td>{item.name}</td>
                 <td>{item.description || "—"}</td>
-                <td>
+                <td className="row" style={{ gap: 6 }}>
                   <button className="btn ghost" type="button" onClick={() => reveal(item.name)}>
                     {t("secrets.reveal")}
+                  </button>
+                  <button className="btn ghost" type="button" onClick={() => remove(item.name)}>
+                    {t("secrets.delete")}
                   </button>
                 </td>
               </tr>
