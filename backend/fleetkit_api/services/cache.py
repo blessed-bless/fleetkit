@@ -3,9 +3,10 @@
 from __future__ import annotations
 
 import time
+from collections.abc import Hashable
 from dataclasses import dataclass
 from threading import Lock
-from typing import Any, Hashable
+from typing import Any
 
 
 @dataclass
