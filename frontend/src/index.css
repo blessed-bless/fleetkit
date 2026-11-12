@@ -525,6 +525,22 @@ h3,
   accent-color: var(--accent);
 }
 
+.metric-bar {
+  margin-top: 10px;
+  height: 6px;
+  border-radius: 999px;
+  background: rgba(139, 155, 176, 0.18);
+  overflow: hidden;
+}
+
+.metric-bar span {
+  display: block;
+  height: 100%;
+  border-radius: inherit;
+  background: linear-gradient(90deg, var(--accent), var(--run));
+  transition: width 0.35s ease;
+}
+
 @media (max-width: 960px) {
   .shell {
     grid-template-columns: 1fr;

@@ -180,6 +180,15 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  patchSchedule: (
+    projectId: string,
+    scheduleId: string,
+    body: { is_enabled?: boolean; cron?: string; name?: string },
+  ) =>
+    request(`/api/v1/projects/${projectId}/schedules/${scheduleId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
   alertRules: (projectId: string) =>
     request<Array<{ id: string; name: string; expression: string; severity: string }>>(
       `/api/v1/projects/${projectId}/alert-rules`,

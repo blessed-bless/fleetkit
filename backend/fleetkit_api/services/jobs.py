@@ -53,6 +53,13 @@ async def enqueue_job(
         message=f"Job {name} queued on {queue}",
         data={"queue": queue},
     )
+    from fleetkit_api.services.live import live_hub
+
+    await live_hub.publish(
+        app.project_id,
+        "job.queued",
+        {"job_id": job.id, "name": job.name, "status": job.status.value},
+    )
     _bust_overview()
     return job
 
@@ -143,6 +150,13 @@ async def cancel_job(db: AsyncSession, job: Job) -> Job:
             message=f"Job {job.name} cancelled",
             level="warning",
         )
+        from fleetkit_api.services.live import live_hub
+
+        await live_hub.publish(
+            app.project_id,
+            "job.cancelled",
+            {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
     await db.flush()
     _bust_overview()
     return job
@@ -169,6 +183,13 @@ async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
             job_id=job.id,
             kind="job.succeeded",
             message=f"Job {job.name} succeeded",
+        )
+        from fleetkit_api.services.live import live_hub
+
+        await live_hub.publish(
+            app.project_id,
+            "job.succeeded",
+            {"job_id": job.id, "name": job.name, "status": job.status.value},
         )
     await db.flush()
     _bust_overview()

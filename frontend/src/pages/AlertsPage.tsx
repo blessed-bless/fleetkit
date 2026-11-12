@@ -44,6 +44,12 @@ export function AlertsPage({
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>Алерты</h1>
+          <p className="lead">Правила на глубину очереди и сбои. Проверка по кнопке или по тику.</p>
+        </div>
+      </div>
       <div className="field" style={{ maxWidth: 280 }}>
         <label>Проект</label>
         <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>

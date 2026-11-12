@@ -42,6 +42,12 @@ export function SecretsPage({
 
   return (
     <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>Секреты</h1>
+          <p className="lead">Токены ботов и ключи для воркеров. Reveal — только по клику.</p>
+        </div>
+      </div>
       <div className="field" style={{ maxWidth: 280 }}>
         <label>Проект</label>
         <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
@@ -66,7 +72,7 @@ export function SecretsPage({
         </button>
       </form>
       {msg ? <p className="muted">{msg}</p> : null}
-      {revealed ? <pre style={{ padding: 12 }}>{revealed}</pre> : null}
+      {revealed ? <pre className="log-box">{revealed}</pre> : null}
       <section className="panel">
         <table className="table">
           <thead>

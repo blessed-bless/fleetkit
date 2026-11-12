@@ -2,11 +2,13 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, tokenStore } from "./api";
+import { useLiveProject } from "./hooks/useLive";
 import { AlertsPage } from "./pages/AlertsPage";
 import { DlqPage } from "./pages/DlqPage";
 import { SearchPage } from "./pages/SearchPage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { SecretsPage } from "./pages/SecretsPage";
+import { SchedulesPage } from "./pages/SchedulesPage";
 
 type Project = { id: string; slug: string; name: string; description: string };
 type JobRow = Awaited<ReturnType<typeof api.jobs>>[number];
@@ -46,6 +48,7 @@ function Shell({
     ["/apps", "Apps"],
     ["/jobs", "Jobs"],
     ["/workers", "Workers"],
+    ["/schedules", "Schedules"],
     ["/alerts", "Алерты"],
     ["/dlq", "DLQ"],
     ["/secrets", "Секреты"],
@@ -192,9 +195,11 @@ function statusBadge(status: string) {
 }
 
 function OverviewPage() {
+  const { projectId } = useProject();
   const [data, setData] = useState<Awaited<ReturnType<typeof api.overview>> | null>(null);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
+  const live = useLiveProject(projectId || null, () => setTick((t) => t + 1));
 
   useEffect(() => {
     let alive = true;
@@ -212,9 +217,11 @@ function OverviewPage() {
   }, [tick]);
 
   useEffect(() => {
-    const id = window.setInterval(() => setTick((t) => t + 1), 4000);
+    // Slow fallback if WS is down; otherwise events drive refresh.
+    const ms = live.connected ? 15000 : 5000;
+    const id = window.setInterval(() => setTick((t) => t + 1), ms);
     return () => window.clearInterval(id);
-  }, []);
+  }, [live.connected]);
 
   if (error) return <p className="error">{error}</p>;
   if (!data) return <p className="muted">Собираем статистику...</p>;
@@ -224,10 +231,10 @@ function OverviewPage() {
       <div className="page-head">
         <div>
           <h1>Обзор флота</h1>
-          <p className="lead">Очередь, воркеры и свежие события. Обновляется каждые 4 сек.</p>
+          <p className="lead">Очередь, воркеры и свежие события. Live по WebSocket.</p>
         </div>
         <span className="live-dot">
-          <i /> live
+          <i /> {live.connected ? "ws live" : "polling"}
         </span>
       </div>
       <div className="grid stats">
@@ -406,7 +413,7 @@ function JobsPage() {
   const [activeId, setActiveId] = useState<string | null>(null);
   const [detail, setDetail] = useState<JobRow | null>(null);
   const [logs, setLogs] = useState<Array<{ seq: number; stream: string; line: string }>>([]);
-  const [live, setLive] = useState(true);
+  const [liveOn, setLiveOn] = useState(true);
 
   const reload = useCallback(async () => {
     if (!projectId) return;
@@ -418,6 +425,10 @@ function JobsPage() {
     });
     setJobs(list);
   }, [projectId, filterApp, filterStatus, filterQ]);
+
+  const live = useLiveProject(liveOn ? projectId || null : null, () => {
+    reload().catch(() => undefined);
+  });
 
   useEffect(() => {
     if (!projectId) return;
@@ -435,12 +446,13 @@ function JobsPage() {
   }, [reload]);
 
   useEffect(() => {
-    if (!live) return;
+    if (!liveOn) return;
+    const ms = live.connected ? 20000 : 4000;
     const id = window.setInterval(() => {
       reload().catch(() => undefined);
-    }, 3000);
+    }, ms);
     return () => window.clearInterval(id);
-  }, [live, reload]);
+  }, [liveOn, live.connected, reload]);
 
   useEffect(() => {
     if (!projectId || !activeId) {
@@ -504,10 +516,10 @@ function JobsPage() {
           <h1>Jobs</h1>
           <p className="lead">Фильтры, bulk-cancel, детали и логи. Live-обновление очереди.</p>
         </div>
-        <button className="btn ghost" type="button" onClick={() => setLive((v) => !v)}>
-          {live ? (
+        <button className="btn ghost" type="button" onClick={() => setLiveOn((v) => !v)}>
+          {liveOn ? (
             <span className="live-dot">
-              <i /> live on
+              <i /> {live.connected ? "ws live" : "polling"}
             </span>
           ) : (
             "Включить live"
@@ -778,6 +790,13 @@ function MetricsRoute() {
   );
 }
 
+function SchedulesRoute() {
+  const { projects, projectId, setProjectId } = useProject();
+  return (
+    <SchedulesPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
+  );
+}
+
 function SettingsPage() {
   const { projects, projectId, setProjectId } = useProject();
   const [secret, setSecret] = useState("");
@@ -853,6 +872,7 @@ export default function App() {
         <Route path="/apps" element={<AppsPage />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/workers" element={<WorkersPage />} />
+        <Route path="/schedules" element={<SchedulesRoute />} />
         <Route path="/alerts" element={<AlertsRoute />} />
         <Route path="/dlq" element={<DlqRoute />} />
         <Route path="/secrets" element={<SecretsRoute />} />
