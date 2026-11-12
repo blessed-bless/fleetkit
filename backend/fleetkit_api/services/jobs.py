@@ -257,6 +257,39 @@ async def cancel_jobs_bulk(db: AsyncSession, jobs: list[Job]) -> list[Job]:
     return out
 
 
+async def retry_job(db: AsyncSession, job: Job) -> Job:
+    """Re-queue a terminal job (failed/cancelled/timed_out) without cloning."""
+    if job.status not in (JobStatus.failed, JobStatus.cancelled, JobStatus.timed_out):
+        raise PolicyDenied(f"cannot retry status={job.status.value}")
+    job.status = JobStatus.queued
+    job.worker_id = None
+    job.error = None
+    job.result = None
+    job.started_at = None
+    job.finished_at = None
+    job.scheduled_for = None
+    app = await db.get(App, job.app_id)
+    if app:
+        await emit_event(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            job_id=job.id,
+            kind="job.retried",
+            message=f"Job {job.name} re-queued manually",
+        )
+        from fleetkit_api.services.live import live_hub
+
+        await live_hub.publish(
+            app.project_id,
+            "job.retried",
+            {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
+    await db.flush()
+    _bust_overview()
+    return job
+
+
 async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
     job.status = JobStatus.succeeded
     job.result = result

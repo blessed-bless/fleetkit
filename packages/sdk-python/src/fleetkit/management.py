@@ -123,6 +123,9 @@ class ManagementClient:
     def cancel_job(self, project_id: str, job_id: str) -> dict[str, Any]:
         return self._request("POST", f"/api/v1/projects/{project_id}/jobs/{job_id}/cancel")
 
+    def retry_job(self, project_id: str, job_id: str) -> dict[str, Any]:
+        return self._request("POST", f"/api/v1/projects/{project_id}/jobs/{job_id}/retry")
+
     def workers(self, project_id: str) -> list[dict[str, Any]]:
         return self._request("GET", f"/api/v1/projects/{project_id}/workers")
 

@@ -129,6 +129,13 @@ export function JobsPage() {
     setMsg(t("jobs.cancelled"));
   }
 
+  async function retryOne(id: string) {
+    if (!projectId) return;
+    await api.retryJob(projectId, id);
+    await reload();
+    setMsg(t("jobs.retried"));
+  }
+
   async function cancelSelected() {
     if (!projectId || selected.size === 0) return;
     const n = selected.size;
@@ -293,6 +300,17 @@ export function JobsPage() {
                         onClick={() => cancelOne(job.id).catch((err) => setMsg(err.message))}
                       >
                         {t("jobs.cancel")}
+                      </button>
+                    ) : null}
+                    {job.status === "failed" ||
+                    job.status === "cancelled" ||
+                    job.status === "timed_out" ? (
+                      <button
+                        className="btn ghost"
+                        type="button"
+                        onClick={() => retryOne(job.id).catch((err) => setMsg(err.message))}
+                      >
+                        {t("jobs.retry")}
                       </button>
                     ) : null}
                   </td>

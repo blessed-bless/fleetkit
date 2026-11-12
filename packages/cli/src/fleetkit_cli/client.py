@@ -84,6 +84,11 @@ class CliClient:
         resp.raise_for_status()
         return resp.json()
 
+    def retry_job(self, project_id: str, job_id: str) -> dict[str, Any]:
+        resp = self._http.post(f"/api/v1/projects/{project_id}/jobs/{job_id}/retry")
+        resp.raise_for_status()
+        return resp.json()
+
     def workers(self, project_id: str) -> list[dict[str, Any]]:
         resp = self._http.get(f"/api/v1/projects/{project_id}/workers")
         resp.raise_for_status()

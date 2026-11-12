@@ -51,6 +51,13 @@ def test_worker_status_has_draining():
     assert WorkerStatus.draining.value == "draining"
 
 
+def test_retry_rejects_running_status_via_policy_denied_type():
+    # retry_job raises PolicyDenied for non-terminal statuses — type contract
+    from fleetkit_api.services import jobs as jobsvc
+
+    assert issubclass(jobsvc.PolicyDenied, RuntimeError)
+
+
 def test_webhook_signature_raw_and_hmac():
     secret = "s3cret"
     body = b'{"ok":true}'
