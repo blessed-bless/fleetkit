@@ -31,10 +31,16 @@ def test_fleetkit_has_claim_batch_and_drain():
     assert hasattr(FleetKit, "claim_batch")
     assert hasattr(FleetKit, "drain")
     assert hasattr(FleetKit, "run_loop")
+    import inspect
+
+    params = inspect.signature(FleetKit.enqueue).parameters
+    assert "priority" in params
+    assert "depends_on_job_id" in params
 
 
 def test_management_has_graph_ops():
     from fleetkit.management import ManagementClient
+    import inspect
 
     for name in (
         "clone_job",
@@ -42,5 +48,11 @@ def test_management_has_graph_ops():
         "job_dependencies",
         "add_job_dependency",
         "enqueue_chain",
+        "accept_invite",
+        "delete_secret",
+        "discard_dead_letter",
     ):
         assert hasattr(ManagementClient, name)
+    params = inspect.signature(ManagementClient.enqueue).parameters
+    assert "priority" in params
+    assert "depends_on_job_id" in params

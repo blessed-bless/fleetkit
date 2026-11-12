@@ -82,17 +82,20 @@ class AsyncFleetKit:
         payload: dict | None = None,
         queue: str = "default",
         tags: list[str] | None = None,
+        priority: int | None = None,
+        depends_on_job_id: str | None = None,
     ) -> dict[str, Any]:
-        return await self._request(
-            "POST",
-            f"/api/v1/agent/apps/{app_id}/jobs",
-            json={
-                "name": name,
-                "payload": payload or {},
-                "queue": queue,
-                "tags": tags or [],
-            },
-        )
+        body: dict[str, Any] = {
+            "name": name,
+            "payload": payload or {},
+            "queue": queue,
+            "tags": tags or [],
+        }
+        if priority is not None:
+            body["priority"] = priority
+        if depends_on_job_id is not None:
+            body["depends_on_job_id"] = depends_on_job_id
+        return await self._request("POST", f"/api/v1/agent/apps/{app_id}/jobs", json=body)
 
     async def claim(
         self, worker_id: str, queues: list[str] | None = None

@@ -108,16 +108,23 @@ class ManagementClient:
         payload: dict | None = None,
         tags: list[str] | None = None,
         queue: str = "default",
+        priority: int | None = None,
+        depends_on_job_id: str | None = None,
     ) -> dict[str, Any]:
+        body: dict[str, Any] = {
+            "name": name,
+            "payload": payload or {},
+            "tags": tags or [],
+            "queue": queue,
+        }
+        if priority is not None:
+            body["priority"] = priority
+        if depends_on_job_id is not None:
+            body["depends_on_job_id"] = depends_on_job_id
         return self._request(
             "POST",
             f"/api/v1/projects/{project_id}/apps/{app_id}/jobs",
-            json={
-                "name": name,
-                "payload": payload or {},
-                "tags": tags or [],
-                "queue": queue,
-            },
+            json=body,
         )
 
     def cancel_job(self, project_id: str, job_id: str) -> dict[str, Any]:

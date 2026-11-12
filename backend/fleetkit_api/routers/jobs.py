@@ -19,7 +19,12 @@ from fleetkit_api.schemas import (
     JobOut,
     JobPriorityIn,
 )
-from fleetkit_api.services.job_graph import DependencyError, add_dependency, enqueue_chain, list_dependencies
+from fleetkit_api.services.job_graph import (
+    DependencyError,
+    add_dependency,
+    enqueue_chain,
+    list_dependencies,
+)
 from fleetkit_api.services.jobs import (
     PolicyDenied,
     cancel_job,
