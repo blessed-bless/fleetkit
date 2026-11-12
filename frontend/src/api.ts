@@ -410,4 +410,12 @@ export const api = {
       `/api/v1/projects/${projectId}/invites`,
       { method: "POST", body: JSON.stringify(body) },
     ),
+  batchJobs: (
+    projectId: string,
+    body: { app_id: string; name: string; payloads: Array<Record<string, unknown>> },
+  ) =>
+    request<{ count: number; job_ids: string[] }>(`/api/v1/projects/${projectId}/jobs/batch`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
 };

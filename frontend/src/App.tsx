@@ -553,6 +553,7 @@ function JobsPage() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterQ, setFilterQ] = useState("");
   const [jobName, setJobName] = useState("ping");
+  const [batchCount, setBatchCount] = useState(1);
   const [msg, setMsg] = useState("");
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [activeId, setActiveId] = useState<string | null>(null);
@@ -622,9 +623,19 @@ function JobsPage() {
     e.preventDefault();
     if (!projectId || !appId) return;
     try {
-      await api.createJob(projectId, appId, { name: jobName, payload: { source: "dashboard" } });
+      const n = Math.max(1, Math.min(100, Number(batchCount) || 1));
+      if (n === 1) {
+        await api.createJob(projectId, appId, { name: jobName, payload: { source: "dashboard" } });
+        setMsg(t("jobs.queuedMsg"));
+      } else {
+        const res = await api.batchJobs(projectId, {
+          app_id: appId,
+          name: jobName,
+          payloads: Array.from({ length: n }, (_, i) => ({ source: "dashboard", i })),
+        });
+        setMsg(t("jobs.batchQueued", { n: res.count }));
+      }
       await reload();
-      setMsg(t("jobs.queuedMsg"));
     } catch (err) {
       setMsg(err instanceof Error ? err.message : t("jobs.enqueueFail"));
     }
@@ -688,6 +699,16 @@ function JobsPage() {
         <div className="field">
           <label>{t("jobs.name")}</label>
           <input value={jobName} onChange={(e) => setJobName(e.target.value)} required />
+        </div>
+        <div className="field">
+          <label>{t("jobs.batch")}</label>
+          <input
+            type="number"
+            min={1}
+            max={100}
+            value={batchCount}
+            onChange={(e) => setBatchCount(Number(e.target.value))}
+          />
         </div>
         <button className="btn" type="submit" disabled={!appId}>
           {t("jobs.enqueue")}
