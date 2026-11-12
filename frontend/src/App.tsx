@@ -1,7 +1,8 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, tokenStore } from "./api";
+import { EmptyState } from "./components/EmptyState";
 import { useLiveProject } from "./hooks/useLive";
 import { LangSwitch, useI18n } from "./i18n";
 import { AlertsPage } from "./pages/AlertsPage";
@@ -10,8 +11,9 @@ import { SearchPage } from "./pages/SearchPage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { SecretsPage } from "./pages/SecretsPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
+import { WebhooksPage } from "./pages/WebhooksPage";
+import { ProjectPicker, ProjectProvider, useProject } from "./project";
 
-type Project = { id: string; slug: string; name: string; description: string };
 type JobRow = Awaited<ReturnType<typeof api.jobs>>[number];
 
 function useAuth() {
@@ -51,6 +53,7 @@ function Shell({
     ["/jobs", t("nav.jobs")],
     ["/workers", t("nav.workers")],
     ["/schedules", t("nav.schedules")],
+    ["/webhooks", t("nav.webhooks")],
     ["/alerts", t("nav.alerts")],
     ["/dlq", t("nav.dlq")],
     ["/secrets", t("nav.secrets")],
@@ -148,54 +151,6 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
   );
 }
 
-function useProject() {
-  const { t } = useI18n();
-  const [projects, setProjects] = useState<Project[]>([]);
-  const [projectId, setProjectId] = useState("");
-  const [error, setError] = useState("");
-
-  useEffect(() => {
-    api
-      .projects()
-      .then((items) => {
-        setProjects(items);
-        if (items[0]) setProjectId(items[0].id);
-      })
-      .catch((err) => setError(err instanceof Error ? err.message : t("project.loadFail")));
-  }, [t]);
-
-  const project = useMemo(
-    () => projects.find((p) => p.id === projectId) || null,
-    [projects, projectId],
-  );
-
-  return { projects, project, projectId, setProjectId, error };
-}
-
-function ProjectPicker({
-  projects,
-  projectId,
-  onChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onChange: (id: string) => void;
-}) {
-  const { t } = useI18n();
-  return (
-    <div className="field" style={{ maxWidth: 280 }}>
-      <label htmlFor="project">{t("project.label")}</label>
-      <select id="project" value={projectId} onChange={(e) => onChange(e.target.value)}>
-        {projects.map((p) => (
-          <option key={p.id} value={p.id}>
-            {p.name} ({p.slug})
-          </option>
-        ))}
-      </select>
-    </div>
-  );
-}
-
 function statusBadge(status: string) {
   if (status === "succeeded") return "ok";
   if (status === "failed" || status === "timed_out") return "err";
@@ -258,6 +213,28 @@ function OverviewPage() {
         </span>
       </div>
       <div className={attention.className}>{attention.text}</div>
+      {data.apps === 0 || data.workers_online === 0 ? (
+        <section className="panel stack-gap onboard">
+          <h2>{t("overview.startTitle")}</h2>
+          <ol className="checklist">
+            <li className={data.apps > 0 ? "done" : ""}>
+              <Link to="/apps">{t("overview.startApp")}</Link>
+            </li>
+            <li className={data.apps > 0 ? "done" : ""}>
+              <Link to="/settings">{t("overview.startKey")}</Link>
+            </li>
+            <li className={data.workers_online > 0 ? "done" : ""}>
+              <span>{t("overview.startWorker")}</span>
+            </li>
+            <li>
+              <Link to="/jobs">{t("overview.startJob")}</Link>
+            </li>
+            <li>
+              <Link to="/webhooks">{t("overview.startWebhook")}</Link>
+            </li>
+          </ol>
+        </section>
+      ) : null}
       <div className="grid stats">
         <div className="stat">
           <div className="label">{t("overview.projects")}</div>
@@ -317,7 +294,7 @@ function OverviewPage() {
 
 function AppsPage() {
   const { t } = useI18n();
-  const { projects, projectId, setProjectId, error } = useProject();
+  const { projectId, error } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
   const [name, setName] = useState("");
   const [slug, setSlug] = useState("");
@@ -347,6 +324,17 @@ function AppsPage() {
     }
   }
 
+  async function toggle(appId: string, enabled: boolean) {
+    if (!projectId) return;
+    try {
+      await api.patchApp(projectId, appId, { is_enabled: !enabled });
+      await reload(projectId);
+      setMsg(!enabled ? t("apps.enabledMsg") : t("apps.disabledMsg"));
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("apps.toggleFail"));
+    }
+  }
+
   return (
     <div className="stack-gap">
       <div className="page-head">
@@ -356,7 +344,7 @@ function AppsPage() {
         </div>
       </div>
       {error ? <p className="error">{error}</p> : null}
-      <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
+      <ProjectPicker />
       <form className="panel row" onSubmit={create}>
         <div className="field">
           <label>{t("apps.name")}</label>
@@ -387,7 +375,7 @@ function AppsPage() {
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {apps.length === 0 ? (
-          <p className="muted">{t("apps.empty")}</p>
+          <EmptyState title={t("apps.empty")} hint={t("apps.emptyHint")} />
         ) : (
           <table className="table">
             <thead>
@@ -396,6 +384,7 @@ function AppsPage() {
                 <th>{t("apps.slug")}</th>
                 <th>{t("apps.kind")}</th>
                 <th>{t("apps.status")}</th>
+                <th />
                 <th>ID</th>
               </tr>
             </thead>
@@ -410,6 +399,15 @@ function AppsPage() {
                       {app.is_enabled ? t("apps.enabled") : t("apps.disabled")}
                     </span>
                   </td>
+                  <td>
+                    <button
+                      className="btn ghost"
+                      type="button"
+                      onClick={() => toggle(app.id, app.is_enabled)}
+                    >
+                      {app.is_enabled ? t("apps.disable") : t("apps.enable")}
+                    </button>
+                  </td>
                   <td className="muted">{app.id}</td>
                 </tr>
               ))}
@@ -423,7 +421,7 @@ function AppsPage() {
 
 function JobsPage() {
   const { t } = useI18n();
-  const { projects, projectId, setProjectId } = useProject();
+  const { projectId } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
   const [jobs, setJobs] = useState<JobRow[]>([]);
   const [appId, setAppId] = useState("");
@@ -550,7 +548,7 @@ function JobsPage() {
           )}
         </button>
       </div>
-      <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
+      <ProjectPicker />
 
       <form className="panel row" onSubmit={enqueue}>
         <div className="field">
@@ -719,7 +717,7 @@ function JobsPage() {
 
 function WorkersPage() {
   const { t } = useI18n();
-  const { projects, projectId, setProjectId } = useProject();
+  const { projectId } = useProject();
   const [workers, setWorkers] = useState<Awaited<ReturnType<typeof api.workers>>>([]);
 
   useEffect(() => {
@@ -741,7 +739,7 @@ function WorkersPage() {
           <i /> {t("live.ws")}
         </span>
       </div>
-      <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
+      <ProjectPicker />
       <section className="panel">
         {workers.length === 0 ? (
           <p className="muted">{t("workers.empty")}</p>
@@ -822,7 +820,7 @@ function SchedulesRoute() {
 
 function SettingsPage() {
   const { t } = useI18n();
-  const { projects, projectId, setProjectId } = useProject();
+  const { projectId } = useProject();
   const [secret, setSecret] = useState("");
   const [msg, setMsg] = useState("");
 
@@ -845,7 +843,7 @@ function SettingsPage() {
           <p className="lead">{t("settings.lead")}</p>
         </div>
       </div>
-      <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
+      <ProjectPicker />
       <section className="panel stack-gap">
         <p className="muted">
           {t("settings.hint")}
@@ -885,6 +883,7 @@ export default function App() {
   }
 
   return (
+    <ProjectProvider>
     <Shell
       email={auth.email!}
       onLogout={() => {
@@ -903,9 +902,11 @@ export default function App() {
         <Route path="/secrets" element={<SecretsRoute />} />
         <Route path="/search" element={<SearchRoute />} />
         <Route path="/metrics" element={<MetricsRoute />} />
+        <Route path="/webhooks" element={<WebhooksPage />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>
     </Shell>
+    </ProjectProvider>
   );
 }

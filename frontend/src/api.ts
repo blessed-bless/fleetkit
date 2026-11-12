@@ -83,6 +83,45 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
+  patchApp: (
+    projectId: string,
+    appId: string,
+    body: { name?: string; is_enabled?: boolean; config?: Record<string, unknown> },
+  ) =>
+    request(`/api/v1/projects/${projectId}/apps/${appId}`, {
+      method: "PATCH",
+      body: JSON.stringify(body),
+    }),
+  webhooks: (projectId: string) =>
+    request<
+      Array<{
+        id: string;
+        app_id: string;
+        name: string;
+        path_token: string;
+        secret: string;
+        target_job_name: string;
+        is_enabled: boolean;
+        created_at: string;
+        ingest_path: string | null;
+      }>
+    >(`/api/v1/projects/${projectId}/webhooks`),
+  createWebhook: (
+    projectId: string,
+    appId: string,
+    body: { name: string; target_job_name?: string },
+  ) =>
+    request<{
+      id: string;
+      secret: string;
+      ingest_path: string | null;
+      target_job_name: string;
+      name: string;
+      is_enabled: boolean;
+    }>(`/api/v1/projects/${projectId}/apps/${appId}/webhooks`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
   jobs: (
     projectId: string,
     params?: { app_id?: string; status?: string; queue?: string; q?: string; limit?: number },
