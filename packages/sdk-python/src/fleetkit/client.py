@@ -107,3 +107,65 @@ class FleetKit:
             f"/api/v1/agent/jobs/{job_id}/fail",
             json={"error": error, "retry": retry},
         )
+
+    def log_line(self, job_id: str, line: str, *, stream: str = "stdout") -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/agent/jobs/{job_id}/logs",
+            json={"line": line, "stream": stream},
+        )
+
+    def log_batch(
+        self, job_id: str, lines: list[str], *, stream: str = "stdout"
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            f"/api/v1/agent/jobs/{job_id}/logs/batch",
+            json={"lines": lines, "stream": stream},
+        )
+
+    def metric(
+        self,
+        name: str,
+        value: float,
+        *,
+        app_id: str | None = None,
+        labels: dict | None = None,
+    ) -> dict[str, Any]:
+        return self._request(
+            "POST",
+            "/api/v1/agent/metrics",
+            json={
+                "name": name,
+                "value": value,
+                "app_id": app_id,
+                "labels": labels or {},
+            },
+        )
+
+    def run_loop(
+        self,
+        *,
+        app_id: str,
+        worker_name: str,
+        handler,
+        poll_interval: float = 1.5,
+        queues: list[str] | None = None,
+    ) -> None:
+        """Blocking poll loop. `handler(job) -> dict`."""
+        import time
+
+        worker = self.register_worker(app_id=app_id, name=worker_name)
+        worker_id = worker["id"]
+        while True:
+            job = self.claim(worker_id, queues=queues)
+            if not job:
+                time.sleep(poll_interval)
+                continue
+            try:
+                self.log_line(job["id"], f"start {job['name']}")
+                result = handler(job)
+                self.complete(job["id"], result if isinstance(result, dict) else {"result": result})
+            except Exception as exc:  # noqa: BLE001
+                self.fail(job["id"], str(exc), retry=True)
+

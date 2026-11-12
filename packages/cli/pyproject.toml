@@ -1,0 +1,22 @@
+[build-system]
+requires = ["setuptools>=68", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "fleetkit-cli"
+version = "0.1.0"
+description = "CLI for FleetKit control plane"
+requires-python = ">=3.11"
+license = { text = "MIT" }
+authors = [{ name = "Bogdan Shcherbinin" }]
+dependencies = [
+  "httpx>=0.28.0",
+  "typer>=0.15.0",
+  "rich>=13.9.0",
+]
+
+[project.scripts]
+fleetkit = "fleetkit_cli.main:app"
+
+[tool.setuptools.packages.find]
+where = ["src"]

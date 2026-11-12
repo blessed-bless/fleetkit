@@ -2,6 +2,11 @@ import { useEffect, useMemo, useState } from "react";
 import type { FormEvent, ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, tokenStore } from "./api";
+import { AlertsPage } from "./pages/AlertsPage";
+import { DlqPage } from "./pages/DlqPage";
+import { SearchPage } from "./pages/SearchPage";
+import { MetricsPage } from "./pages/MetricsPage";
+import { SecretsPage } from "./pages/SecretsPage";
 
 type Project = { id: string; slug: string; name: string; description: string };
 
@@ -40,6 +45,11 @@ function Shell({
     ["/apps", "Apps"],
     ["/jobs", "Jobs"],
     ["/workers", "Workers"],
+    ["/alerts", "Алерты"],
+    ["/dlq", "DLQ"],
+    ["/secrets", "Секреты"],
+    ["/search", "Поиск"],
+    ["/metrics", "Метрики"],
     ["/settings", "Ключи"],
   ] as const;
 
@@ -482,6 +492,39 @@ function WorkersPage() {
   );
 }
 
+function AlertsRoute() {
+  const { projects, projectId, setProjectId } = useProject();
+  return (
+    <AlertsPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
+  );
+}
+
+function DlqRoute() {
+  const { projects, projectId, setProjectId } = useProject();
+  return <DlqPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />;
+}
+
+function SecretsRoute() {
+  const { projects, projectId, setProjectId } = useProject();
+  return (
+    <SecretsPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
+  );
+}
+
+function SearchRoute() {
+  const { projects, projectId, setProjectId } = useProject();
+  return (
+    <SearchPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
+  );
+}
+
+function MetricsRoute() {
+  const { projects, projectId, setProjectId } = useProject();
+  return (
+    <MetricsPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />
+  );
+}
+
 function SettingsPage() {
   const { projects, projectId, setProjectId } = useProject();
   const [secret, setSecret] = useState("");
@@ -564,6 +607,11 @@ export default function App() {
         <Route path="/apps" element={<AppsPage />} />
         <Route path="/jobs" element={<JobsPage />} />
         <Route path="/workers" element={<WorkersPage />} />
+        <Route path="/alerts" element={<AlertsRoute />} />
+        <Route path="/dlq" element={<DlqRoute />} />
+        <Route path="/secrets" element={<SecretsRoute />} />
+        <Route path="/search" element={<SearchRoute />} />
+        <Route path="/metrics" element={<MetricsRoute />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

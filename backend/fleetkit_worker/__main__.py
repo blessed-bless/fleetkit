@@ -60,6 +60,9 @@ class FleetWorker:
         )
 
     async def handle_job(self, job: dict[str, Any]) -> dict[str, Any]:
+        import fleetkit_worker.builtin_jobs  # noqa: F401
+        import fleetkit_worker.net_jobs  # noqa: F401
+        import fleetkit_worker.text_jobs  # noqa: F401
         from fleetkit_worker.handlers import get_handler
 
         name = job.get("name", "")
