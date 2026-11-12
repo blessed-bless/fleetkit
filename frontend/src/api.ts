@@ -388,4 +388,26 @@ export const api = {
         created_at: string;
       }>
     >(`/api/v1/projects/${projectId}/audit`),
+  appEnv: (projectId: string, appId: string) =>
+    request<
+      Array<{ id: string; key: string; is_secret: boolean; value_preview: string }>
+    >(`/api/v1/projects/${projectId}/apps/${appId}/env`),
+  upsertAppEnv: (
+    projectId: string,
+    appId: string,
+    body: { key: string; value: string; is_secret?: boolean },
+  ) =>
+    request(`/api/v1/projects/${projectId}/apps/${appId}/env`, {
+      method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  members: (projectId: string) =>
+    request<Array<{ id: string; user_id: string; role: string; created_at: string }>>(
+      `/api/v1/projects/${projectId}/members`,
+    ),
+  createInvite: (projectId: string, body: { email: string; role?: string }) =>
+    request<{ id: string; email: string; role: string; token: string }>(
+      `/api/v1/projects/${projectId}/invites`,
+      { method: "POST", body: JSON.stringify(body) },
+    ),
 };

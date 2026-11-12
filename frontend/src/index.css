@@ -108,9 +108,24 @@ h3,
 .side-nav {
   display: flex;
   flex-direction: column;
-  gap: 2px;
+  gap: 12px;
   flex: 1;
   overflow-y: auto;
+}
+
+.nav-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.nav-group-label {
+  font-size: 0.7rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding: 4px 10px 2px;
 }
 
 .side-nav a {
