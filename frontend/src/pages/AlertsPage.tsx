@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
 
 type Project = { id: string; slug: string; name: string };
 
@@ -13,6 +14,7 @@ export function AlertsPage({
   projectId: string;
   onProjectChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [rules, setRules] = useState<any[]>([]);
   const [fires, setFires] = useState<any[]>([]);
   const [name, setName] = useState("Queue too deep");
@@ -32,13 +34,13 @@ export function AlertsPage({
   async function create(e: FormEvent) {
     e.preventDefault();
     await api.createAlertRule(projectId, { name, expression, severity: "warning" });
-    setMsg("Правило добавлено");
+    setMsg(t("alerts.added"));
     await reload(projectId);
   }
 
   async function evaluate() {
     const res = await api.evaluateAlerts(projectId);
-    setMsg(`Сработало правил: ${res.fired}`);
+    setMsg(t("alerts.fired", { n: res.fired }));
     await reload(projectId);
   }
 
@@ -46,12 +48,12 @@ export function AlertsPage({
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Алерты</h1>
-          <p className="lead">Правила на глубину очереди и сбои. Проверка по кнопке или по тику.</p>
+          <h1>{t("alerts.title")}</h1>
+          <p className="lead">{t("alerts.lead")}</p>
         </div>
       </div>
       <div className="field" style={{ maxWidth: 280 }}>
-        <label>Проект</label>
+        <label>{t("project.label")}</label>
         <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -62,29 +64,29 @@ export function AlertsPage({
       </div>
       <form className="panel row" onSubmit={create}>
         <div className="field">
-          <label>Имя</label>
+          <label>{t("alerts.name")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="field">
-          <label>Expression</label>
+          <label>{t("alerts.expr")}</label>
           <input value={expression} onChange={(e) => setExpression(e.target.value)} required />
         </div>
         <button className="btn" type="submit">
-          Добавить правило
+          {t("alerts.add")}
         </button>
         <button className="btn ghost" type="button" onClick={evaluate}>
-          Проверить сейчас
+          {t("alerts.checkNow")}
         </button>
       </form>
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
-        <h2>Правила</h2>
+        <h2>{t("alerts.rules")}</h2>
         <table className="table">
           <thead>
             <tr>
-              <th>Имя</th>
-              <th>Expr</th>
-              <th>Severity</th>
+              <th>{t("alerts.name")}</th>
+              <th>{t("alerts.expr")}</th>
+              <th>{t("alerts.severity")}</th>
             </tr>
           </thead>
           <tbody>
@@ -99,15 +101,15 @@ export function AlertsPage({
         </table>
       </section>
       <section className="panel">
-        <h2>Срабатывания</h2>
+        <h2>{t("alerts.fires")}</h2>
         {fires.length === 0 ? (
-          <p className="muted">Пока тихо. Добавь правило и жми «Проверить сейчас».</p>
+          <p className="muted">{t("alerts.firesEmpty")}</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Когда</th>
-                <th>Сообщение</th>
+                <th>{t("alerts.when")}</th>
+                <th>{t("alerts.message")}</th>
               </tr>
             </thead>
             <tbody>
