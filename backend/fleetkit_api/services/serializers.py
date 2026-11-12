@@ -38,6 +38,7 @@ def job_dict(j: Job) -> dict[str, Any]:
         "name": j.name,
         "status": j.status.value if hasattr(j.status, "value") else j.status,
         "payload": j.payload,
+        "tags": list(getattr(j, "tags", None) or []),
         "result": j.result,
         "error": j.error,
         "attempt": j.attempt,
