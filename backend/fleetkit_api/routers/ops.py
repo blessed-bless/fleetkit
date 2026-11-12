@@ -121,16 +121,22 @@ async def flags_upsert(
     project: Project = Depends(get_project_for_user),
     db: AsyncSession = Depends(get_db),
 ) -> FeatureFlag:
+    from fleetkit_api.services.validators import validate_flag_key
+
+    try:
+        key = validate_flag_key(body.key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     result = await db.execute(
         select(FeatureFlag).where(
-            FeatureFlag.project_id == project.id, FeatureFlag.key == body.key
+            FeatureFlag.project_id == project.id, FeatureFlag.key == key
         )
     )
     row = result.scalar_one_or_none()
     if row is None:
         row = FeatureFlag(
             project_id=project.id,
-            key=body.key,
+            key=key,
             enabled=body.enabled,
             payload=body.payload,
         )

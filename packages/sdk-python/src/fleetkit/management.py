@@ -268,3 +268,6 @@ class ManagementClient:
 
     def evaluate_alerts(self, project_id: str) -> dict[str, Any]:
         return self._request("POST", f"/api/v1/projects/{project_id}/alerts/evaluate")
+
+    def delete_secret(self, project_id: str, name: str) -> None:
+        self._request("DELETE", f"/api/v1/projects/{project_id}/secrets/{name}")

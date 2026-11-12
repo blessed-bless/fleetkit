@@ -8,7 +8,7 @@ from fleetkit_api.deps import get_current_user, get_project_for_user
 from fleetkit_api.models import Project, User
 from fleetkit_api.schemas_ext import SecretCreate, SecretMetaOut, SecretRevealOut
 from fleetkit_api.services.audit import write_audit
-from fleetkit_api.services.secrets import list_secrets, read_secret, upsert_secret
+from fleetkit_api.services.secrets import delete_secret, list_secrets, read_secret, upsert_secret
 
 router = APIRouter(tags=["secrets"])
 
@@ -70,3 +70,24 @@ async def secrets_reveal(
     )
     await db.commit()
     return SecretRevealOut(name=name, value=value)
+
+
+@router.delete("/projects/{project_id}/secrets/{name}", status_code=204)
+async def secrets_delete(
+    name: str,
+    project: Project = Depends(get_project_for_user),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    ok = await delete_secret(db, project_id=project.id, name=name)
+    if not ok:
+        raise HTTPException(status_code=404, detail="Секрет не найден")
+    await write_audit(
+        db,
+        action="secret.deleted",
+        project_id=project.id,
+        actor_user_id=user.id,
+        resource_type="secret",
+        data={"name": name},
+    )
+    await db.commit()

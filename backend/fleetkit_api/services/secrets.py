@@ -57,3 +57,15 @@ async def list_secrets(db: AsyncSession, *, project_id: str) -> list[SecretRecor
         .order_by(SecretRecord.name.asc())
     )
     return list(result.scalars().all())
+
+
+async def delete_secret(db: AsyncSession, *, project_id: str, name: str) -> bool:
+    result = await db.execute(
+        select(SecretRecord).where(SecretRecord.project_id == project_id, SecretRecord.name == name)
+    )
+    row = result.scalar_one_or_none()
+    if row is None:
+        return False
+    await db.delete(row)
+    await db.flush()
+    return True
