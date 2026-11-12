@@ -218,6 +218,19 @@ class CliClient:
         resp.raise_for_status()
         return resp.json()
 
+    def discard_dead_letter(self, project_id: str, dlq_id: str) -> dict[str, Any]:
+        resp = self._http.post(f"/api/v1/projects/{project_id}/dead-letters/{dlq_id}/discard")
+        resp.raise_for_status()
+        return resp.json()
+
+    def requeue_dead_letters_bulk(self, project_id: str, dlq_ids: list[str]) -> dict[str, Any]:
+        resp = self._http.post(
+            f"/api/v1/projects/{project_id}/dead-letters/requeue-bulk",
+            json={"dlq_ids": dlq_ids},
+        )
+        resp.raise_for_status()
+        return resp.json()
+
     def evaluate_alerts(self, project_id: str) -> dict[str, Any]:
         resp = self._http.post(f"/api/v1/projects/{project_id}/alerts/evaluate")
         resp.raise_for_status()

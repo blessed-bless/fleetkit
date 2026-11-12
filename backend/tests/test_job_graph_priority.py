@@ -27,22 +27,39 @@ def test_validate_priority_bounds():
         validate_priority(101)
 
 
-def test_claim_sort_key_priority_then_age():
-    """Mirrors claim_next_job eligible.sort key: higher priority first, then older."""
+def test_claim_sort_key_priority_then_urgency():
+    """Mirrors claim_next_job: priority, then urgency score, then age."""
     from datetime import UTC, datetime
+
+    from fleetkit_api.services.policy_engine import score_job_urgency
 
     now = datetime(2026, 1, 1, tzinfo=UTC)
     older = datetime(2025, 1, 1, tzinfo=UTC)
 
     class J:
-        def __init__(self, id: str, created_at):
+        def __init__(self, id: str, created_at, queue="default", attempt=0):
             self.id = id
             self.created_at = created_at
+            self.queue = queue
+            self.attempt = attempt
 
-    pri = {"hi": 90, "lo": 10, "mid": 50}
-    eligible = [J("lo", older), J("hi", now), J("mid", older)]
-    eligible.sort(key=lambda j: (-pri.get(j.id, 50), j.created_at or now))
-    assert [j.id for j in eligible] == ["hi", "mid", "lo"]
+    pri = {"hi": 90, "lo": 10, "urgent": 50, "mid": 50}
+    eligible = [
+        J("lo", older),
+        J("hi", now),
+        J("mid", older),
+        J("urgent", older, queue="priority", attempt=3),
+    ]
+
+    def rank(j: J):
+        age = (now - (j.created_at or now)).total_seconds()
+        urgency = score_job_urgency(attempt=j.attempt, queue=j.queue, age_seconds=age)
+        return (-pri.get(j.id, 50), -urgency, j.created_at or now)
+
+    eligible.sort(key=rank)
+    assert eligible[0].id == "hi"
+    assert eligible[1].id == "urgent"
+    assert [j.id for j in eligible[2:]] == ["mid", "lo"]
 
 
 def test_schemas_job_create_extras():

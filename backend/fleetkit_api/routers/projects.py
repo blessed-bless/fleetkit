@@ -34,12 +34,18 @@ async def create_project(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> Project:
-    existing = await db.execute(select(Project).where(Project.slug == body.slug))
+    from fleetkit_api.services.validators import validate_slug
+
+    try:
+        slug = validate_slug(body.slug)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+    existing = await db.execute(select(Project).where(Project.slug == slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Slug уже занят")
     project = Project(
         owner_id=user.id,
-        slug=body.slug,
+        slug=slug,
         name=body.name,
         description=body.description,
     )

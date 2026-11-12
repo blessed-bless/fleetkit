@@ -339,6 +339,13 @@ export const api = {
     request<{ job_id: string }>(`/api/v1/projects/${projectId}/dead-letters/${dlqId}/requeue`, {
       method: "POST",
     }),
+  discardDeadLetter: (projectId: string, dlqId: string) =>
+    request(`/api/v1/projects/${projectId}/dead-letters/${dlqId}/discard`, { method: "POST" }),
+  requeueDeadLettersBulk: (projectId: string, dlqIds: string[]) =>
+    request<{ count: number; job_ids: string[] }>(
+      `/api/v1/projects/${projectId}/dead-letters/requeue-bulk`,
+      { method: "POST", body: JSON.stringify({ dlq_ids: dlqIds }) },
+    ),
   secrets: (projectId: string) =>
     request<Array<{ id: string; name: string; description: string }>>(
       `/api/v1/projects/${projectId}/secrets`,

@@ -319,6 +319,12 @@ def requeue(project_id: str, dlq_id: str) -> None:
     console.print(data)
 
 
+@app.command("dlq-discard")
+def dlq_discard(project_id: str, dlq_id: str) -> None:
+    data = _client().discard_dead_letter(project_id, dlq_id)
+    console.print(f"discarded -> {data.get('id')}")
+
+
 @app.command()
 def alerts(project_id: str) -> None:
     data = _client().evaluate_alerts(project_id)

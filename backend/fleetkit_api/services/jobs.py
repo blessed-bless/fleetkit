@@ -192,13 +192,22 @@ async def claim_next_job(
     if not eligible:
         return None
 
+    from fleetkit_api.services.policy_engine import score_job_urgency
+
     pri_rows = (
         await db.execute(
             select(JobPriorityOverride).where(JobPriorityOverride.job_id.in_([j.id for j in eligible]))
         )
     ).scalars().all()
     pri_map = {row.job_id: int(row.priority) for row in pri_rows}
-    eligible.sort(key=lambda j: (-pri_map.get(j.id, 50), j.created_at or now))
+
+    def _rank(j: Job) -> tuple[int, float, datetime]:
+        created = j.created_at or now
+        age = max(0.0, (now - created).total_seconds())
+        urgency = score_job_urgency(attempt=j.attempt, queue=j.queue or "default", age_seconds=age)
+        return (-pri_map.get(j.id, 50), -urgency, created)
+
+    eligible.sort(key=_rank)
     job = eligible[0]
 
     job.status = JobStatus.running
