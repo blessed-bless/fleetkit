@@ -10,14 +10,18 @@ export function OpsPage() {
   const { projectId } = useProject();
   const [retention, setRetention] = useState<Awaited<ReturnType<typeof api.retention>>>([]);
   const [flags, setFlags] = useState<Awaited<ReturnType<typeof api.flags>>>([]);
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof api.members>>>([]);
   const [flagKey, setFlagKey] = useState("beta.ui");
   const [flagOn, setFlagOn] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteToken, setInviteToken] = useState("");
   const [msg, setMsg] = useState("");
 
   async function reload(id: string) {
-    const [r, f] = await Promise.all([api.retention(id), api.flags(id)]);
+    const [r, f, m] = await Promise.all([api.retention(id), api.flags(id), api.members(id)]);
     setRetention(r);
     setFlags(f);
+    setMembers(m);
   }
 
   useEffect(() => {
@@ -143,6 +147,63 @@ export function OpsPage() {
                       {f.enabled ? t("schedules.on") : t("schedules.off")}
                     </span>
                   </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="panel stack-gap">
+        <h2 style={{ margin: 0 }}>{t("ops.members")}</h2>
+        <form
+          className="row"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!projectId) return;
+            try {
+              const inv = await api.createInvite(projectId, {
+                email: inviteEmail,
+                role: "viewer",
+              });
+              setInviteToken(inv.token);
+              setMsg(t("ops.invited"));
+              setInviteEmail("");
+              await reload(projectId);
+            } catch (err) {
+              setMsg(err instanceof Error ? err.message : t("ops.inviteFail"));
+            }
+          }}
+        >
+          <div className="field">
+            <label>{t("ops.inviteEmail")}</label>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              required
+            />
+          </div>
+          <button className="btn" type="submit">
+            {t("ops.invite")}
+          </button>
+        </form>
+        {inviteToken ? <pre className="log-box">{inviteToken}</pre> : null}
+        {members.length === 0 ? (
+          <p className="muted">{t("ops.membersEmpty")}</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>user_id</th>
+                <th>{t("ops.role")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.id}>
+                  <td className="muted">{m.user_id}</td>
+                  <td>{m.role}</td>
                 </tr>
               ))}
             </tbody>

@@ -51,24 +51,39 @@ function Shell({
 }) {
   const loc = useLocation();
   const { t } = useI18n();
-  const links = [
-    ["/", t("nav.overview")],
-    ["/apps", t("nav.apps")],
-    ["/jobs", t("nav.jobs")],
-    ["/workers", t("nav.workers")],
-    ["/schedules", t("nav.schedules")],
-    ["/webhooks", t("nav.webhooks")],
-    ["/templates", t("nav.templates")],
-    ["/health", t("nav.health")],
-    ["/alerts", t("nav.alerts")],
-    ["/dlq", t("nav.dlq")],
-    ["/secrets", t("nav.secrets")],
-    ["/search", t("nav.search")],
-    ["/metrics", t("nav.metrics")],
-    ["/ops", t("nav.ops")],
-    ["/audit", t("nav.audit")],
-    ["/settings", t("nav.settings")],
-  ] as const;
+  const groups: Array<{ label: string; items: Array<[string, string]> }> = [
+    { label: t("nav.groupMain"), items: [["/", t("nav.overview")]] },
+    {
+      label: t("nav.groupWork"),
+      items: [
+        ["/apps", t("nav.apps")],
+        ["/jobs", t("nav.jobs")],
+        ["/workers", t("nav.workers")],
+        ["/schedules", t("nav.schedules")],
+        ["/webhooks", t("nav.webhooks")],
+        ["/templates", t("nav.templates")],
+      ],
+    },
+    {
+      label: t("nav.groupObserve"),
+      items: [
+        ["/health", t("nav.health")],
+        ["/alerts", t("nav.alerts")],
+        ["/dlq", t("nav.dlq")],
+        ["/search", t("nav.search")],
+        ["/metrics", t("nav.metrics")],
+      ],
+    },
+    {
+      label: t("nav.groupAdmin"),
+      items: [
+        ["/secrets", t("nav.secrets")],
+        ["/ops", t("nav.ops")],
+        ["/audit", t("nav.audit")],
+        ["/settings", t("nav.settings")],
+      ],
+    },
+  ];
 
   return (
     <div className="shell">
@@ -77,11 +92,15 @@ function Shell({
           Fleet<span>Kit</span>
         </div>
         <nav className="side-nav">
-          {links.map(([to, label]) => (
-            <Link key={to} to={to} className={loc.pathname === to ? "active" : ""}>
-              <span className="nav-dot" />
-              {label}
-            </Link>
+          {groups.map((g) => (
+            <div key={g.label} className="nav-group">
+              <div className="nav-group-label">{g.label}</div>
+              {g.items.map(([to, label]) => (
+                <Link key={to} to={to} className={loc.pathname === to ? "active" : ""}>
+                  {label}
+                </Link>
+              ))}
+            </div>
           ))}
         </nav>
         <div className="side-foot">
@@ -308,14 +327,32 @@ function AppsPage() {
   const [slug, setSlug] = useState("");
   const [kind, setKind] = useState("worker");
   const [msg, setMsg] = useState("");
+  const [selectedApp, setSelectedApp] = useState("");
+  const [envRows, setEnvRows] = useState<Awaited<ReturnType<typeof api.appEnv>>>([]);
+  const [envKey, setEnvKey] = useState("LOG_LEVEL");
+  const [envValue, setEnvValue] = useState("info");
+  const [envSecret, setEnvSecret] = useState(false);
 
   async function reload(id: string) {
-    setApps(await api.apps(id));
+    const list = await api.apps(id);
+    setApps(list);
+    if (list[0] && !selectedApp) setSelectedApp(list[0].id);
+  }
+
+  async function reloadEnv(appId: string) {
+    if (!projectId || !appId) return;
+    setEnvRows(await api.appEnv(projectId, appId));
   }
 
   useEffect(() => {
     if (projectId) reload(projectId).catch((err) => setMsg(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [projectId]);
+
+  useEffect(() => {
+    if (selectedApp) reloadEnv(selectedApp).catch((err) => setMsg(err.message));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedApp, projectId]);
 
   async function create(e: FormEvent) {
     e.preventDefault();
@@ -398,7 +435,12 @@ function AppsPage() {
             </thead>
             <tbody>
               {apps.map((app) => (
-                <tr key={app.id}>
+                <tr
+                  key={app.id}
+                  className={selectedApp === app.id ? "selected" : ""}
+                  onClick={() => setSelectedApp(app.id)}
+                  style={{ cursor: "pointer" }}
+                >
                   <td>{app.name}</td>
                   <td>{app.slug}</td>
                   <td>{app.kind}</td>
@@ -411,7 +453,10 @@ function AppsPage() {
                     <button
                       className="btn ghost"
                       type="button"
-                      onClick={() => toggle(app.id, app.is_enabled)}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        toggle(app.id, app.is_enabled);
+                      }}
                     >
                       {app.is_enabled ? t("apps.disable") : t("apps.enable")}
                     </button>
@@ -423,6 +468,77 @@ function AppsPage() {
           </table>
         )}
       </section>
+      {selectedApp ? (
+        <section className="panel stack-gap">
+          <h2 style={{ margin: 0 }}>{t("apps.envTitle")}</h2>
+          <form
+            className="row"
+            onSubmit={async (e) => {
+              e.preventDefault();
+              if (!projectId || !selectedApp) return;
+              try {
+                await api.upsertAppEnv(projectId, selectedApp, {
+                  key: envKey,
+                  value: envValue,
+                  is_secret: envSecret,
+                });
+                setMsg(t("apps.envSaved"));
+                setEnvValue("");
+                await reloadEnv(selectedApp);
+              } catch (err) {
+                setMsg(err instanceof Error ? err.message : t("apps.envFail"));
+              }
+            }}
+          >
+            <div className="field">
+              <label>{t("apps.envKey")}</label>
+              <input
+                value={envKey}
+                onChange={(e) => setEnvKey(e.target.value)}
+                pattern="^[A-Z][A-Z0-9_]*$"
+                required
+              />
+            </div>
+            <div className="field">
+              <label>{t("apps.envValue")}</label>
+              <input value={envValue} onChange={(e) => setEnvValue(e.target.value)} required />
+            </div>
+            <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+              <input
+                type="checkbox"
+                checked={envSecret}
+                onChange={(e) => setEnvSecret(e.target.checked)}
+              />
+              {t("apps.envSecret")}
+            </label>
+            <button className="btn" type="submit">
+              {t("apps.envSave")}
+            </button>
+          </form>
+          {envRows.length === 0 ? (
+            <p className="muted">{t("apps.envEmpty")}</p>
+          ) : (
+            <table className="table">
+              <thead>
+                <tr>
+                  <th>{t("apps.envKey")}</th>
+                  <th>{t("apps.envValue")}</th>
+                </tr>
+              </thead>
+              <tbody>
+                {envRows.map((row) => (
+                  <tr key={row.id}>
+                    <td>
+                      <code>{row.key}</code>
+                    </td>
+                    <td className="muted">{row.value_preview}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          )}
+        </section>
+      ) : null}
     </div>
   );
 }
