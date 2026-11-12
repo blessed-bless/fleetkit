@@ -117,6 +117,7 @@ class JobCreate(BaseModel):
     name: str
     queue: str = "default"
     payload: dict[str, Any] = Field(default_factory=dict)
+    tags: list[str] = Field(default_factory=list, max_length=32)
     max_attempts: int = Field(default=3, ge=1, le=20)
     timeout_seconds: int = Field(default=300, ge=5, le=86400)
     scheduled_for: datetime | None = None
@@ -139,6 +140,7 @@ class JobOut(BaseModel):
     name: str
     status: JobStatus
     payload: dict[str, Any]
+    tags: list[str] = Field(default_factory=list)
     result: dict[str, Any] | None
     error: str | None
     attempt: int
@@ -150,6 +152,10 @@ class JobOut(BaseModel):
     created_at: datetime
 
     model_config = {"from_attributes": True}
+
+
+class WorkerDrainIn(BaseModel):
+    draining: bool = True
 
 
 class ScheduleCreate(BaseModel):

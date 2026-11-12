@@ -10,6 +10,7 @@ from fleetkit_api.deps import get_project_by_api_key, get_project_for_user
 from fleetkit_api.models import App, Job, JobStatus, Project, Worker
 from fleetkit_api.schemas import JobCompleteIn, JobCreate, JobFailIn, JobOut
 from fleetkit_api.services.jobs import (
+    PolicyDenied,
     cancel_job,
     cancel_jobs_bulk,
     claim_jobs_batch,
@@ -50,15 +51,17 @@ async def list_jobs(
     app_id: str | None = Query(default=None),
     status: JobStatus | None = Query(default=None),
     queue: str | None = Query(default=None),
+    tag: str | None = Query(default=None, max_length=64),
     q: str | None = Query(default=None, max_length=120),
     limit: int = Query(default=50, ge=1, le=200),
 ) -> list[Job]:
+    fetch_limit = min(limit * 4, 400) if tag else limit
     stmt = (
         select(Job)
         .join(App, App.id == Job.app_id)
         .where(App.project_id == project.id)
         .order_by(Job.created_at.desc())
-        .limit(limit)
+        .limit(fetch_limit)
     )
     if app_id:
         stmt = stmt.where(Job.app_id == app_id)
@@ -69,7 +72,10 @@ async def list_jobs(
     if q:
         stmt = stmt.where(Job.name.ilike(f"%{q}%"))
     result = await db.execute(stmt)
-    return list(result.scalars().all())
+    rows = list(result.scalars().all())
+    if tag:
+        rows = [j for j in rows if tag in (j.tags or [])][:limit]
+    return rows
 
 
 @router.get("/projects/{project_id}/jobs/{job_id}", response_model=JobOut)
@@ -121,16 +127,20 @@ async def create_job(
     db: AsyncSession = Depends(get_db),
 ) -> Job:
     app = await _app_in_project(db, project, app_id)
-    job = await enqueue_job(
-        db,
-        app=app,
-        name=body.name,
-        payload=body.payload,
-        queue=body.queue,
-        max_attempts=body.max_attempts,
-        timeout_seconds=body.timeout_seconds,
-        scheduled_for=body.scheduled_for,
-    )
+    try:
+        job = await enqueue_job(
+            db,
+            app=app,
+            name=body.name,
+            payload=body.payload,
+            queue=body.queue,
+            tags=body.tags,
+            max_attempts=body.max_attempts,
+            timeout_seconds=body.timeout_seconds,
+            scheduled_for=body.scheduled_for,
+        )
+    except PolicyDenied as exc:
+        raise HTTPException(status_code=409, detail=f"policy denied: {exc.reason}") from exc
     await db.commit()
     await db.refresh(job)
     return job
@@ -144,16 +154,20 @@ async def agent_enqueue(
     db: AsyncSession = Depends(get_db),
 ) -> Job:
     app = await _app_in_project(db, project, app_id)
-    job = await enqueue_job(
-        db,
-        app=app,
-        name=body.name,
-        payload=body.payload,
-        queue=body.queue,
-        max_attempts=body.max_attempts,
-        timeout_seconds=body.timeout_seconds,
-        scheduled_for=body.scheduled_for,
-    )
+    try:
+        job = await enqueue_job(
+            db,
+            app=app,
+            name=body.name,
+            payload=body.payload,
+            queue=body.queue,
+            tags=body.tags,
+            max_attempts=body.max_attempts,
+            timeout_seconds=body.timeout_seconds,
+            scheduled_for=body.scheduled_for,
+        )
+    except PolicyDenied as exc:
+        raise HTTPException(status_code=409, detail=f"policy denied: {exc.reason}") from exc
     await db.commit()
     await db.refresh(job)
     return job

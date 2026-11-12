@@ -77,6 +77,12 @@ def list_projects() -> None:
     console.print(table)
 
 
+@app.command("project-create")
+def project_create(name: str, slug: str, description: str = "") -> None:
+    row = _client().create_project(name, slug, description)
+    console.print(f"created [cyan]{row['id']}[/cyan] {row['slug']}")
+
+
 @app.command()
 def apps(project_id: str) -> None:
     rows = _client().apps(project_id)
@@ -96,34 +102,146 @@ def enqueue(
     app_id: str,
     name: str = "ping",
     payload: Optional[str] = typer.Option(None, help="JSON payload"),
+    tag: Optional[list[str]] = typer.Option(None, help="Repeatable job tag"),
 ) -> None:
     body = json.loads(payload) if payload else {"source": "cli"}
-    job = _client().enqueue(project_id, app_id, name, body)
+    job = _client().enqueue(project_id, app_id, name, body, tags=tag or [])
     console.print(f"queued [cyan]{job['id']}[/cyan] status={job['status']}")
 
 
 @app.command()
-def jobs(project_id: str) -> None:
-    rows = _client().jobs(project_id)
+def jobs(
+    project_id: str,
+    status: Optional[str] = typer.Option(None),
+    tag: Optional[str] = typer.Option(None),
+    q: Optional[str] = typer.Option(None),
+) -> None:
+    rows = _client().jobs(project_id, status=status, tag=tag, q=q)
     table = Table(title="Jobs")
     table.add_column("ID")
     table.add_column("Name")
     table.add_column("Status")
     table.add_column("Queue")
+    table.add_column("Tags")
     for row in rows[:50]:
-        table.add_row(row["id"], row["name"], row["status"], row["queue"])
+        tags = ",".join(row.get("tags") or [])
+        table.add_row(row["id"], row["name"], row["status"], row["queue"], tags)
     console.print(table)
+
+
+@app.command()
+def cancel(project_id: str, job_id: str) -> None:
+    data = _client().cancel_job(project_id, job_id)
+    console.print(f"cancel -> {data.get('status')}")
 
 
 @app.command()
 def workers(project_id: str) -> None:
     rows = _client().workers(project_id)
     table = Table(title="Workers")
+    table.add_column("ID")
     table.add_column("Name")
     table.add_column("Status")
     table.add_column("Host")
     for row in rows:
-        table.add_row(row["name"], row["status"], row.get("hostname") or "")
+        table.add_row(row["id"], row["name"], row["status"], row.get("hostname") or "")
+    console.print(table)
+
+
+@app.command()
+def drain(
+    project_id: str,
+    worker_id: str,
+    resume: bool = typer.Option(False, help="Bring worker back online"),
+) -> None:
+    data = _client().drain_worker(project_id, worker_id, draining=not resume)
+    console.print(f"worker {data['name']} -> {data['status']}")
+
+
+@app.command()
+def schedules(project_id: str) -> None:
+    rows = _client().schedules(project_id)
+    table = Table(title="Schedules")
+    table.add_column("Name")
+    table.add_column("Cron")
+    table.add_column("Enabled")
+    for row in rows:
+        table.add_row(row["name"], row["cron"], str(row.get("is_enabled")))
+    console.print(table)
+
+
+@app.command()
+def webhooks(project_id: str) -> None:
+    rows = _client().webhooks(project_id)
+    table = Table(title="Webhooks")
+    table.add_column("Name")
+    table.add_column("Job")
+    table.add_column("Path")
+    for row in rows:
+        table.add_row(row["name"], row["target_job_name"], row.get("ingest_path") or "")
+    console.print(table)
+
+
+@app.command()
+def health(project_id: str) -> None:
+    rows = _client().health_checks(project_id)
+    table = Table(title="Health checks")
+    table.add_column("Name")
+    table.add_column("Target")
+    table.add_column("Status")
+    for row in rows:
+        table.add_row(row["name"], row.get("target") or "", row.get("last_status") or "")
+    console.print(table)
+
+
+@app.command("health-run")
+def health_run(project_id: str, check_id: str) -> None:
+    data = _client().run_health(project_id, check_id)
+    console.print(f"{data.get('name')} -> {data.get('last_status')}")
+
+
+@app.command()
+def templates(project_id: str) -> None:
+    rows = _client().templates(project_id)
+    table = Table(title="Templates")
+    table.add_column("Slug")
+    table.add_column("Job")
+    table.add_column("Queue")
+    for row in rows:
+        table.add_row(row["slug"], row["job_name"], row["queue"])
+    console.print(table)
+
+
+@app.command("template-run")
+def template_run(project_id: str, template_id: str) -> None:
+    data = _client().run_template(project_id, template_id)
+    console.print(data)
+
+
+@app.command()
+def quotas(project_id: str) -> None:
+    console.print_json(data=_client().quotas(project_id))
+
+
+@app.command("export")
+def export_cfg(project_id: str, out: Optional[Path] = typer.Option(None)) -> None:
+    data = _client().export_project(project_id)
+    text = json.dumps(data, indent=2, ensure_ascii=False)
+    if out:
+        out.write_text(text, encoding="utf-8")
+        console.print(f"wrote {out}")
+    else:
+        console.print(text)
+
+
+@app.command()
+def secrets(project_id: str) -> None:
+    rows = _client().secrets(project_id)
+    table = Table(title="Secrets")
+    table.add_column("Name")
+    table.add_column("Description")
+    for row in rows:
+        table.add_row(row["name"], row.get("description") or "")
     console.print(table)
 
 

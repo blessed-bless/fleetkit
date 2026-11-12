@@ -133,12 +133,20 @@ export const api = {
     }),
   jobs: (
     projectId: string,
-    params?: { app_id?: string; status?: string; queue?: string; q?: string; limit?: number },
+    params?: {
+      app_id?: string;
+      status?: string;
+      queue?: string;
+      tag?: string;
+      q?: string;
+      limit?: number;
+    },
   ) => {
     const qs = new URLSearchParams();
     if (params?.app_id) qs.set("app_id", params.app_id);
     if (params?.status) qs.set("status", params.status);
     if (params?.queue) qs.set("queue", params.queue);
+    if (params?.tag) qs.set("tag", params.tag);
     if (params?.q) qs.set("q", params.q);
     if (params?.limit) qs.set("limit", String(params.limit));
     const suffix = qs.toString() ? `?${qs}` : "";
@@ -149,6 +157,7 @@ export const api = {
         name: string;
         status: string;
         queue: string;
+        tags?: string[];
         attempt: number;
         max_attempts: number;
         payload: Record<string, unknown>;
@@ -167,6 +176,7 @@ export const api = {
       name: string;
       status: string;
       queue: string;
+      tags?: string[];
       attempt: number;
       max_attempts: number;
       payload: Record<string, unknown>;
@@ -190,7 +200,12 @@ export const api = {
   createJob: (
     projectId: string,
     appId: string,
-    body: { name: string; payload?: Record<string, unknown>; queue?: string },
+    body: {
+      name: string;
+      payload?: Record<string, unknown>;
+      queue?: string;
+      tags?: string[];
+    },
   ) =>
     request(`/api/v1/projects/${projectId}/apps/${appId}/jobs`, {
       method: "POST",
@@ -206,6 +221,11 @@ export const api = {
         last_heartbeat_at: string | null;
       }>
     >(`/api/v1/projects/${projectId}/workers`),
+  drainWorker: (projectId: string, workerId: string, draining = true) =>
+    request(`/api/v1/projects/${projectId}/workers/${workerId}/drain`, {
+      method: "POST",
+      body: JSON.stringify({ draining }),
+    }),
   createApiKey: (projectId: string, name: string) =>
     request<{ id: string; secret: string; key_prefix: string }>(
       `/api/v1/projects/${projectId}/api-keys`,
