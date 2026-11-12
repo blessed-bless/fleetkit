@@ -1,4 +1,6 @@
-const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
+const API_BASE =
+  import.meta.env.VITE_API_URL?.replace(/\/$/, "") ||
+  `${window.location.protocol}//${window.location.hostname}:8000`;
 
 export const tokenStore = {
   get: () => localStorage.getItem("fleetkit_token"),

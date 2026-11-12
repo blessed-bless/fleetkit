@@ -1,5 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
 
 type Project = { id: string; slug: string; name: string };
 
@@ -12,6 +13,7 @@ export function MetricsPage({
   projectId: string;
   onProjectChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [values, setValues] = useState<Record<string, number>>({});
   const [msg, setMsg] = useState("");
   const [busy, setBusy] = useState(false);
@@ -22,9 +24,9 @@ export function MetricsPage({
     setBusy(true);
     try {
       setValues(await api.snapshotMetrics(projectId));
-      setMsg("Сняли snapshot метрик");
+      setMsg(t("metrics.done"));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Не снялось");
+      setMsg(err instanceof Error ? err.message : t("metrics.fail"));
     } finally {
       setBusy(false);
     }
@@ -39,15 +41,15 @@ export function MetricsPage({
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Метрики</h1>
-          <p className="lead">Снимок очереди и воркеров. Бар — доля от максимума в кадре.</p>
+          <h1>{t("metrics.title")}</h1>
+          <p className="lead">{t("metrics.lead")}</p>
         </div>
         <button className="btn" type="button" onClick={snapshot} disabled={busy || !projectId}>
-          {busy ? "Снимаем..." : "Снять snapshot"}
+          {busy ? t("metrics.busy") : t("metrics.snapshot")}
         </button>
       </div>
       <div className="field" style={{ maxWidth: 280 }}>
-        <label>Проект</label>
+        <label>{t("project.label")}</label>
         <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -58,7 +60,7 @@ export function MetricsPage({
       </div>
       {msg ? <p className="muted">{msg}</p> : null}
       {Object.keys(values).length === 0 ? (
-        <p className="muted">Пока пусто. Сними snapshot после первых job.</p>
+        <p className="muted">{t("metrics.empty")}</p>
       ) : (
         <div className="grid stats">
           {Object.entries(values).map(([key, value]) => (

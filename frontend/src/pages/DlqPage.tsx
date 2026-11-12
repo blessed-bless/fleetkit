@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
 
 type Project = { id: string; slug: string; name: string };
 
@@ -12,6 +13,7 @@ export function DlqPage({
   projectId: string;
   onProjectChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   const [items, setItems] = useState<
     Array<{ id: string; job_name: string; error: string; attempts: number; requeued: boolean }>
   >([]);
@@ -30,10 +32,10 @@ export function DlqPage({
     setBusy(id);
     try {
       const res = await api.requeueDeadLetter(projectId, id);
-      setMsg(`Вернул в очередь: ${res.job_id}`);
+      setMsg(t("dlq.requeued", { id: res.job_id }));
       await reload(projectId);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Не вернулся в очередь");
+      setMsg(err instanceof Error ? err.message : t("dlq.requeueFail"));
     } finally {
       setBusy(null);
     }
@@ -43,12 +45,12 @@ export function DlqPage({
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Dead letter</h1>
-          <p className="lead">Job, которые выжали все retry. Почини и верни в очередь.</p>
+          <h1>{t("dlq.title")}</h1>
+          <p className="lead">{t("dlq.lead")}</p>
         </div>
       </div>
       <div className="field" style={{ maxWidth: 280 }}>
-        <label>Проект</label>
+        <label>{t("project.label")}</label>
         <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
           {projects.map((p) => (
             <option key={p.id} value={p.id}>
@@ -60,14 +62,14 @@ export function DlqPage({
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {items.length === 0 ? (
-          <p className="muted">Dead letter пуст. Сломанные job после исчерпания retry появятся здесь.</p>
+          <p className="muted">{t("dlq.empty")}</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Job</th>
-                <th>Error</th>
-                <th>Attempts</th>
+                <th>{t("dlq.job")}</th>
+                <th>{t("dlq.error")}</th>
+                <th>{t("dlq.attempts")}</th>
                 <th />
               </tr>
             </thead>
@@ -84,7 +86,7 @@ export function DlqPage({
                       disabled={busy === item.id || item.requeued}
                       onClick={() => requeue(item.id)}
                     >
-                      {busy === item.id ? "Возвращаем..." : "Вернуть в очередь"}
+                      {busy === item.id ? t("dlq.requeuing") : t("dlq.requeue")}
                     </button>
                   </td>
                 </tr>

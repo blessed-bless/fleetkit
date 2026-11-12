@@ -3,6 +3,7 @@ import type { FormEvent, ReactNode } from "react";
 import { Link, Navigate, Route, Routes, useLocation, useNavigate } from "react-router-dom";
 import { ApiError, api, tokenStore } from "./api";
 import { useLiveProject } from "./hooks/useLive";
+import { LangSwitch, useI18n } from "./i18n";
 import { AlertsPage } from "./pages/AlertsPage";
 import { DlqPage } from "./pages/DlqPage";
 import { SearchPage } from "./pages/SearchPage";
@@ -43,18 +44,19 @@ function Shell({
   children: ReactNode;
 }) {
   const loc = useLocation();
+  const { t } = useI18n();
   const links = [
-    ["/", "Обзор"],
-    ["/apps", "Apps"],
-    ["/jobs", "Jobs"],
-    ["/workers", "Workers"],
-    ["/schedules", "Schedules"],
-    ["/alerts", "Алерты"],
-    ["/dlq", "DLQ"],
-    ["/secrets", "Секреты"],
-    ["/search", "Поиск"],
-    ["/metrics", "Метрики"],
-    ["/settings", "Ключи"],
+    ["/", t("nav.overview")],
+    ["/apps", t("nav.apps")],
+    ["/jobs", t("nav.jobs")],
+    ["/workers", t("nav.workers")],
+    ["/schedules", t("nav.schedules")],
+    ["/alerts", t("nav.alerts")],
+    ["/dlq", t("nav.dlq")],
+    ["/secrets", t("nav.secrets")],
+    ["/search", t("nav.search")],
+    ["/metrics", t("nav.metrics")],
+    ["/settings", t("nav.settings")],
   ] as const;
 
   return (
@@ -72,11 +74,12 @@ function Shell({
           ))}
         </nav>
         <div className="side-foot">
+          <LangSwitch />
           <span className="muted" style={{ fontSize: "0.85rem", padding: "0 8px" }}>
             {email}
           </span>
           <button className="btn ghost" type="button" onClick={onLogout}>
-            Выйти
+            {t("nav.logout")}
           </button>
         </div>
       </aside>
@@ -88,6 +91,7 @@ function Shell({
 }
 
 function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
+  const { t } = useI18n();
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("fleetkit-admin");
   const [error, setError] = useState("");
@@ -102,7 +106,8 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
       tokenStore.set(tok.access_token);
       onLogin(email);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Не удалось войти");
+      if (err instanceof ApiError) setError(err.message);
+      else setError(t("login.apiDown"));
     } finally {
       setBusy(false);
     }
@@ -111,19 +116,22 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
   return (
     <div className="login-wrap">
       <form className="panel login-card stack-gap" onSubmit={submit}>
-        <div>
-          <div className="brand">
-            Fleet<span>Kit</span>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "start" }}>
+          <div>
+            <div className="brand">
+              Fleet<span>Kit</span>
+            </div>
+            <h1>{t("login.title")}</h1>
+            <p className="muted">{t("login.lead")}</p>
           </div>
-          <h1>Control plane</h1>
-          <p className="muted">Боты, воркеры и cron — одна очередь, один экран.</p>
+          <LangSwitch />
         </div>
         <div className="field">
-          <label htmlFor="email">Email</label>
+          <label htmlFor="email">{t("login.email")}</label>
           <input id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
         </div>
         <div className="field">
-          <label htmlFor="password">Пароль</label>
+          <label htmlFor="password">{t("login.password")}</label>
           <input
             id="password"
             type="password"
@@ -133,7 +141,7 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
         </div>
         {error ? <p className="error">{error}</p> : null}
         <button className="btn" disabled={busy} type="submit">
-          {busy ? "Проверяем..." : "Войти"}
+          {busy ? t("login.checking") : t("login.submit")}
         </button>
       </form>
     </div>
@@ -141,6 +149,7 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
 }
 
 function useProject() {
+  const { t } = useI18n();
   const [projects, setProjects] = useState<Project[]>([]);
   const [projectId, setProjectId] = useState("");
   const [error, setError] = useState("");
@@ -152,8 +161,8 @@ function useProject() {
         setProjects(items);
         if (items[0]) setProjectId(items[0].id);
       })
-      .catch((err) => setError(err instanceof Error ? err.message : "Не загрузились проекты"));
-  }, []);
+      .catch((err) => setError(err instanceof Error ? err.message : t("project.loadFail")));
+  }, [t]);
 
   const project = useMemo(
     () => projects.find((p) => p.id === projectId) || null,
@@ -172,9 +181,10 @@ function ProjectPicker({
   projectId: string;
   onChange: (id: string) => void;
 }) {
+  const { t } = useI18n();
   return (
     <div className="field" style={{ maxWidth: 280 }}>
-      <label htmlFor="project">Проект</label>
+      <label htmlFor="project">{t("project.label")}</label>
       <select id="project" value={projectId} onChange={(e) => onChange(e.target.value)}>
         {projects.map((p) => (
           <option key={p.id} value={p.id}>
@@ -195,11 +205,12 @@ function statusBadge(status: string) {
 }
 
 function OverviewPage() {
+  const { t } = useI18n();
   const { projectId } = useProject();
   const [data, setData] = useState<Awaited<ReturnType<typeof api.overview>> | null>(null);
   const [error, setError] = useState("");
   const [tick, setTick] = useState(0);
-  const live = useLiveProject(projectId || null, () => setTick((t) => t + 1));
+  const live = useLiveProject(projectId || null, () => setTick((n) => n + 1));
 
   useEffect(() => {
     let alive = true;
@@ -209,71 +220,70 @@ function OverviewPage() {
         if (alive) setData(d);
       })
       .catch((err) => {
-        if (alive) setError(err instanceof Error ? err.message : "Обзор недоступен");
+        if (alive) setError(err instanceof Error ? err.message : t("overview.unavailable"));
       });
     return () => {
       alive = false;
     };
-  }, [tick]);
+  }, [tick, t]);
 
   useEffect(() => {
-    // Slow fallback if WS is down; otherwise events drive refresh.
     const ms = live.connected ? 15000 : 5000;
-    const id = window.setInterval(() => setTick((t) => t + 1), ms);
+    const id = window.setInterval(() => setTick((n) => n + 1), ms);
     return () => window.clearInterval(id);
   }, [live.connected]);
 
   if (error) return <p className="error">{error}</p>;
-  if (!data) return <p className="muted">Собираем статистику...</p>;
+  if (!data) return <p className="muted">{t("overview.loading")}</p>;
 
   return (
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Обзор флота</h1>
-          <p className="lead">Очередь, воркеры и свежие события. Live по WebSocket.</p>
+          <h1>{t("overview.title")}</h1>
+          <p className="lead">{t("overview.lead")}</p>
         </div>
         <span className="live-dot">
-          <i /> {live.connected ? "ws live" : "polling"}
+          <i /> {live.connected ? t("live.ws") : t("live.polling")}
         </span>
       </div>
       <div className="grid stats">
         <div className="stat">
-          <div className="label">Проекты</div>
+          <div className="label">{t("overview.projects")}</div>
           <div className="value">{data.projects}</div>
         </div>
         <div className="stat">
-          <div className="label">Apps</div>
+          <div className="label">{t("overview.apps")}</div>
           <div className="value">{data.apps}</div>
         </div>
         <div className="stat">
-          <div className="label">Workers online</div>
+          <div className="label">{t("overview.workersOnline")}</div>
           <div className="value">{data.workers_online}</div>
         </div>
         <div className="stat">
-          <div className="label">Queued</div>
+          <div className="label">{t("overview.queued")}</div>
           <div className="value">{data.jobs_queued}</div>
         </div>
         <div className="stat">
-          <div className="label">Running</div>
+          <div className="label">{t("overview.running")}</div>
           <div className="value">{data.jobs_running}</div>
         </div>
         <div className="stat">
-          <div className="label">Failed 24h</div>
+          <div className="label">{t("overview.failed24h")}</div>
           <div className="value">{data.jobs_failed_24h}</div>
         </div>
       </div>
       <section className="panel">
-        <h2>Последние события</h2>
+        <h2>{t("overview.events")}</h2>
         {data.recent_events.length === 0 ? (
-          <p className="muted">Пока тихо. Создай app и кинь первый job.</p>
+          <p className="muted">{t("overview.eventsEmpty")}</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Когда</th>
-                <th>Тип</th>
-                <th>Сообщение</th>
+                <th>{t("overview.when")}</th>
+                <th>{t("overview.type")}</th>
+                <th>{t("overview.message")}</th>
               </tr>
             </thead>
             <tbody>
@@ -295,6 +305,7 @@ function OverviewPage() {
 }
 
 function AppsPage() {
+  const { t } = useI18n();
   const { projects, projectId, setProjectId, error } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
   const [name, setName] = useState("");
@@ -319,9 +330,9 @@ function AppsPage() {
       setName("");
       setSlug("");
       await reload(projectId);
-      setMsg("App создано");
+      setMsg(t("apps.created"));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Не создалось");
+      setMsg(err instanceof Error ? err.message : t("apps.createFail"));
     }
   }
 
@@ -329,19 +340,19 @@ function AppsPage() {
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Apps</h1>
-          <p className="lead">Боты, воркеры, cron и webhook-приёмники в одном проекте.</p>
+          <h1>{t("apps.title")}</h1>
+          <p className="lead">{t("apps.lead")}</p>
         </div>
       </div>
       {error ? <p className="error">{error}</p> : null}
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
       <form className="panel row" onSubmit={create}>
         <div className="field">
-          <label>Имя</label>
+          <label>{t("apps.name")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="field">
-          <label>Slug</label>
+          <label>{t("apps.slug")}</label>
           <input
             value={slug}
             onChange={(e) => setSlug(e.target.value)}
@@ -350,7 +361,7 @@ function AppsPage() {
           />
         </div>
         <div className="field">
-          <label>Тип</label>
+          <label>{t("apps.kind")}</label>
           <select value={kind} onChange={(e) => setKind(e.target.value)}>
             <option value="worker">worker</option>
             <option value="bot">bot</option>
@@ -359,21 +370,21 @@ function AppsPage() {
           </select>
         </div>
         <button className="btn" type="submit">
-          Создать app
+          {t("apps.create")}
         </button>
       </form>
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {apps.length === 0 ? (
-          <p className="muted">Здесь пока пусто. Добавь первое app под бота или воркер.</p>
+          <p className="muted">{t("apps.empty")}</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Имя</th>
-                <th>Slug</th>
-                <th>Тип</th>
-                <th>Статус</th>
+                <th>{t("apps.name")}</th>
+                <th>{t("apps.slug")}</th>
+                <th>{t("apps.kind")}</th>
+                <th>{t("apps.status")}</th>
                 <th>ID</th>
               </tr>
             </thead>
@@ -385,7 +396,7 @@ function AppsPage() {
                   <td>{app.kind}</td>
                   <td>
                     <span className={`badge ${app.is_enabled ? "ok" : "warn"}`}>
-                      {app.is_enabled ? "enabled" : "disabled"}
+                      {app.is_enabled ? t("apps.enabled") : t("apps.disabled")}
                     </span>
                   </td>
                   <td className="muted">{app.id}</td>
@@ -400,6 +411,7 @@ function AppsPage() {
 }
 
 function JobsPage() {
+  const { t } = useI18n();
   const { projects, projectId, setProjectId } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
   const [jobs, setJobs] = useState<JobRow[]>([]);
@@ -479,9 +491,9 @@ function JobsPage() {
     try {
       await api.createJob(projectId, appId, { name: jobName, payload: { source: "dashboard" } });
       await reload();
-      setMsg("Job в очереди");
+      setMsg(t("jobs.queuedMsg"));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Не отправилось");
+      setMsg(err instanceof Error ? err.message : t("jobs.enqueueFail"));
     }
   }
 
@@ -489,15 +501,16 @@ function JobsPage() {
     if (!projectId) return;
     await api.cancelJob(projectId, id);
     await reload();
-    setMsg("Job отменён");
+    setMsg(t("jobs.cancelled"));
   }
 
   async function cancelSelected() {
     if (!projectId || selected.size === 0) return;
+    const n = selected.size;
     await api.cancelJobsBulk(projectId, [...selected]);
     setSelected(new Set());
     await reload();
-    setMsg(`Отменено: ${selected.size}`);
+    setMsg(t("jobs.bulkCancelled", { n }));
   }
 
   function toggle(id: string) {
@@ -513,16 +526,16 @@ function JobsPage() {
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Jobs</h1>
-          <p className="lead">Фильтры, bulk-cancel, детали и логи. Live-обновление очереди.</p>
+          <h1>{t("jobs.title")}</h1>
+          <p className="lead">{t("jobs.lead")}</p>
         </div>
         <button className="btn ghost" type="button" onClick={() => setLiveOn((v) => !v)}>
           {liveOn ? (
             <span className="live-dot">
-              <i /> {live.connected ? "ws live" : "polling"}
+              <i /> {live.connected ? t("live.ws") : t("live.polling")}
             </span>
           ) : (
-            "Включить live"
+            t("live.enable")
           )}
         </button>
       </div>
@@ -530,7 +543,7 @@ function JobsPage() {
 
       <form className="panel row" onSubmit={enqueue}>
         <div className="field">
-          <label>App</label>
+          <label>{t("jobs.app")}</label>
           <select value={appId} onChange={(e) => setAppId(e.target.value)}>
             {apps.map((a) => (
               <option key={a.id} value={a.id}>
@@ -540,19 +553,19 @@ function JobsPage() {
           </select>
         </div>
         <div className="field">
-          <label>Имя job</label>
+          <label>{t("jobs.name")}</label>
           <input value={jobName} onChange={(e) => setJobName(e.target.value)} required />
         </div>
         <button className="btn" type="submit" disabled={!appId}>
-          Поставить в очередь
+          {t("jobs.enqueue")}
         </button>
       </form>
 
       <div className="panel toolbar">
         <div className="field">
-          <label>Статус</label>
+          <label>{t("jobs.status")}</label>
           <select value={filterStatus} onChange={(e) => setFilterStatus(e.target.value)}>
-            <option value="">все</option>
+            <option value="">{t("jobs.statusAll")}</option>
             <option value="queued">queued</option>
             <option value="running">running</option>
             <option value="succeeded">succeeded</option>
@@ -561,9 +574,9 @@ function JobsPage() {
           </select>
         </div>
         <div className="field">
-          <label>App</label>
+          <label>{t("jobs.app")}</label>
           <select value={filterApp} onChange={(e) => setFilterApp(e.target.value)}>
-            <option value="">все</option>
+            <option value="">{t("jobs.appAll")}</option>
             {apps.map((a) => (
               <option key={a.id} value={a.id}>
                 {a.name}
@@ -572,7 +585,7 @@ function JobsPage() {
           </select>
         </div>
         <div className="field">
-          <label>Поиск по имени</label>
+          <label>{t("jobs.search")}</label>
           <input
             value={filterQ}
             onChange={(e) => setFilterQ(e.target.value)}
@@ -585,7 +598,7 @@ function JobsPage() {
           disabled={selected.size === 0}
           onClick={() => cancelSelected().catch((err) => setMsg(err.message))}
         >
-          Отменить выбранные ({selected.size})
+          {t("jobs.cancelSelected", { n: selected.size })}
         </button>
       </div>
 
@@ -597,11 +610,11 @@ function JobsPage() {
             <thead>
               <tr>
                 <th />
-                <th>Имя</th>
-                <th>Статус</th>
-                <th>Queue</th>
-                <th>Attempt</th>
-                <th>Создан</th>
+                <th>{t("jobs.name")}</th>
+                <th>{t("jobs.status")}</th>
+                <th>{t("jobs.queue")}</th>
+                <th>{t("jobs.attempt")}</th>
+                <th>{t("jobs.created")}</th>
                 <th />
               </tr>
             </thead>
@@ -636,7 +649,7 @@ function JobsPage() {
                         type="button"
                         onClick={() => cancelOne(job.id).catch((err) => setMsg(err.message))}
                       >
-                        Отменить
+                        {t("jobs.cancel")}
                       </button>
                     ) : null}
                   </td>
@@ -644,15 +657,13 @@ function JobsPage() {
               ))}
             </tbody>
           </table>
-          {jobs.length === 0 ? (
-            <p className="muted">Очередь пустая или фильтр ничего не поймал.</p>
-          ) : null}
+          {jobs.length === 0 ? <p className="muted">{t("jobs.empty")}</p> : null}
         </section>
 
         <aside className="panel drawer stack-gap">
-          <h2>Детали</h2>
+          <h2>{t("jobs.details")}</h2>
           {!detail ? (
-            <p className="muted">Кликни job слева — покажем payload, результат и логи.</p>
+            <p className="muted">{t("jobs.detailsHint")}</p>
           ) : (
             <>
               <div>
@@ -664,20 +675,20 @@ function JobsPage() {
               </p>
               {detail.error ? <p className="error">{detail.error}</p> : null}
               <div className="field">
-                <label>Payload</label>
+                <label>{t("jobs.payload")}</label>
                 <pre className="log-box">{JSON.stringify(detail.payload, null, 2)}</pre>
               </div>
               {detail.result ? (
                 <div className="field">
-                  <label>Result</label>
+                  <label>{t("jobs.result")}</label>
                   <pre className="log-box">{JSON.stringify(detail.result, null, 2)}</pre>
                 </div>
               ) : null}
               <div className="field">
-                <label>Логи</label>
+                <label>{t("jobs.logs")}</label>
                 <div className="log-box">
                   {logs.length === 0 ? (
-                    <span className="muted">Логов пока нет</span>
+                    <span className="muted">{t("jobs.logsEmpty")}</span>
                   ) : (
                     logs.map((l) => (
                       <div key={l.seq} className={l.stream === "stderr" ? "stderr" : ""}>
@@ -696,6 +707,7 @@ function JobsPage() {
 }
 
 function WorkersPage() {
+  const { t } = useI18n();
   const { projects, projectId, setProjectId } = useProject();
   const [workers, setWorkers] = useState<Awaited<ReturnType<typeof api.workers>>>([]);
 
@@ -711,25 +723,25 @@ function WorkersPage() {
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Workers</h1>
-          <p className="lead">Кто онлайн и когда был последний heartbeat.</p>
+          <h1>{t("workers.title")}</h1>
+          <p className="lead">{t("workers.lead")}</p>
         </div>
         <span className="live-dot">
-          <i /> live
+          <i /> {t("live.ws")}
         </span>
       </div>
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
       <section className="panel">
         {workers.length === 0 ? (
-          <p className="muted">Нет воркеров. Подними examples/http-worker или docker worker.</p>
+          <p className="muted">{t("workers.empty")}</p>
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Имя</th>
-                <th>Host</th>
-                <th>Статус</th>
-                <th>Heartbeat</th>
+                <th>{t("workers.name")}</th>
+                <th>{t("workers.host")}</th>
+                <th>{t("workers.status")}</th>
+                <th>{t("workers.heartbeat")}</th>
               </tr>
             </thead>
             <tbody>
@@ -745,7 +757,7 @@ function WorkersPage() {
                   <td className="muted">
                     {w.last_heartbeat_at
                       ? new Date(w.last_heartbeat_at).toLocaleString()
-                      : "ещё не было"}
+                      : t("workers.never")}
                   </td>
                 </tr>
               ))}
@@ -798,6 +810,7 @@ function SchedulesRoute() {
 }
 
 function SettingsPage() {
+  const { t } = useI18n();
   const { projects, projectId, setProjectId } = useProject();
   const [secret, setSecret] = useState("");
   const [msg, setMsg] = useState("");
@@ -807,9 +820,9 @@ function SettingsPage() {
     try {
       const key = await api.createApiKey(projectId, `key-${Date.now()}`);
       setSecret(key.secret);
-      setMsg("Ключ создан. Скопируй сейчас — потом его не покажем.");
+      setMsg(t("settings.minted"));
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Не выпустился ключ");
+      setMsg(err instanceof Error ? err.message : t("settings.mintFail"));
     }
   }
 
@@ -817,17 +830,17 @@ function SettingsPage() {
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>API-ключи</h1>
-          <p className="lead">Для воркеров и агентов. Один раз видишь secret — и всё.</p>
+          <h1>{t("settings.title")}</h1>
+          <p className="lead">{t("settings.lead")}</p>
         </div>
       </div>
       <ProjectPicker projects={projects} projectId={projectId} onChange={setProjectId} />
       <section className="panel stack-gap">
         <p className="muted">
-          Клади ключ в <code>X-FleetKit-Key</code> или в SDK. Не коммить в git.
+          {t("settings.hint")}
         </p>
         <button className="btn" type="button" onClick={mint}>
-          Выпустить ключ
+          {t("settings.mint")}
         </button>
         {msg ? <p className="muted">{msg}</p> : null}
         {secret ? <pre className="log-box">{secret}</pre> : null}
@@ -839,11 +852,12 @@ function SettingsPage() {
 export default function App() {
   const auth = useAuth();
   const navigate = useNavigate();
+  const { t } = useI18n();
 
   if (!auth.ready) {
     return (
       <div className="login-wrap">
-        <p className="muted">Загружаем сессию...</p>
+        <p className="muted">{t("login.loadingSession")}</p>
       </div>
     );
   }
