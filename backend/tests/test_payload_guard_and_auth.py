@@ -1,6 +1,9 @@
 import pytest
 
-from fleetkit_api.security_suite.auth_hardening import LoginProtector, is_insecure_bootstrap_password
+from fleetkit_api.security_suite.auth_hardening import (
+    LoginProtector,
+    is_insecure_bootstrap_password,
+)
 from fleetkit_api.security_suite.payload_guard import PayloadRejected, assert_payload_safe
 
 
