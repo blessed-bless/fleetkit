@@ -76,20 +76,7 @@ class FleetWorker:
             return {"ok": True, "echo": payload, "job_name": name}
         return await handler(payload)
 
-    async def claim_and_run(self, client: httpx.AsyncClient) -> bool:
-        if not self.worker_id:
-            return False
-        resp = await client.post(
-            f"{self.base_url}/api/v1/agent/workers/{self.worker_id}/claim",
-            headers=self.headers,
-            timeout=30,
-        )
-        resp.raise_for_status()
-        if resp.status_code == 204 or not resp.content or resp.text in {"null", ""}:
-            return False
-        job = resp.json()
-        if not job:
-            return False
+    async def _finish_job(self, client: httpx.AsyncClient, job: dict) -> None:
         try:
             result = await self.handle_job(job)
             await client.post(
@@ -104,6 +91,39 @@ class FleetWorker:
                 headers=self.headers,
                 json={"error": str(exc), "retry": True},
             )
+
+    async def claim_and_run(self, client: httpx.AsyncClient) -> bool:
+        if not self.worker_id:
+            return False
+        # Batch claim cuts round-trips when the queue is busy.
+        resp = await client.post(
+            f"{self.base_url}/api/v1/agent/workers/{self.worker_id}/claim-batch",
+            headers=self.headers,
+            params={"limit": 5},
+            timeout=30,
+        )
+        if resp.status_code == 404:
+            # Older API without claim-batch — fall back to single claim.
+            resp = await client.post(
+                f"{self.base_url}/api/v1/agent/workers/{self.worker_id}/claim",
+                headers=self.headers,
+                timeout=30,
+            )
+            resp.raise_for_status()
+            if resp.status_code == 204 or not resp.content or resp.text in {"null", ""}:
+                return False
+            job = resp.json()
+            if not job:
+                return False
+            await self._finish_job(client, job)
+            return True
+
+        resp.raise_for_status()
+        jobs = resp.json() or []
+        if not jobs:
+            return False
+        for job in jobs:
+            await self._finish_job(client, job)
         return True
 
     async def run_forever(self) -> None:

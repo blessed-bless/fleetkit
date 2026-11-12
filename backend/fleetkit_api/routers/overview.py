@@ -10,6 +10,7 @@ from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_current_user
 from fleetkit_api.models import App, Event, Job, JobStatus, Project, User, Worker, WorkerStatus
 from fleetkit_api.schemas import EventOut, OverviewOut
+from fleetkit_api.services.cache import overview_cache
 
 router = APIRouter(tags=["overview"])
 
@@ -19,6 +20,11 @@ async def overview(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
 ) -> OverviewOut:
+    cache_key = ("overview", user.id)
+    cached = overview_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     projects_count = await db.scalar(
         select(func.count()).select_from(Project).where(Project.owner_id == user.id)
     )
@@ -27,7 +33,7 @@ async def overview(
     ).scalars().all()
 
     if not project_ids:
-        return OverviewOut(
+        empty = OverviewOut(
             projects=0,
             apps=0,
             workers_online=0,
@@ -36,6 +42,8 @@ async def overview(
             jobs_failed_24h=0,
             recent_events=[],
         )
+        overview_cache.set(cache_key, empty, ttl_seconds=2.0)
+        return empty
 
     apps_count = await db.scalar(
         select(func.count()).select_from(App).where(App.project_id.in_(project_ids))
@@ -78,7 +86,7 @@ async def overview(
         )
     ).scalars().all()
 
-    return OverviewOut(
+    result = OverviewOut(
         projects=projects_count or 0,
         apps=apps_count or 0,
         workers_online=workers_online or 0,
@@ -87,3 +95,5 @@ async def overview(
         jobs_failed_24h=jobs_failed_24h or 0,
         recent_events=[EventOut.model_validate(e) for e in events],
     )
+    overview_cache.set(cache_key, result, ttl_seconds=2.0)
+    return result

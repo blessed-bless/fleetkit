@@ -6,7 +6,12 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.models import App, Job, JobStatus, Worker, WorkerStatus
+from fleetkit_api.services.cache import overview_cache
 from fleetkit_api.services.events import emit_event
+
+
+def _bust_overview() -> None:
+    overview_cache.invalidate_prefix("overview")
 
 
 async def enqueue_job(
@@ -48,6 +53,7 @@ async def enqueue_job(
         message=f"Job {name} queued on {queue}",
         data={"queue": queue},
     )
+    _bust_overview()
     return job
 
 
@@ -97,7 +103,56 @@ async def claim_next_job(
         data={"worker_id": worker.id, "attempt": job.attempt},
     )
     await db.flush()
+    _bust_overview()
     return job
+
+
+async def claim_jobs_batch(
+    db: AsyncSession,
+    *,
+    app: App,
+    worker: Worker,
+    queues: list[str] | None = None,
+    limit: int = 5,
+) -> list[Job]:
+    """Claim up to `limit` queued jobs in one round-trip (fewer heartbeats under load)."""
+    limit = max(1, min(limit, 25))
+    claimed: list[Job] = []
+    for _ in range(limit):
+        job = await claim_next_job(db, app=app, worker=worker, queues=queues)
+        if job is None:
+            break
+        claimed.append(job)
+    return claimed
+
+
+async def cancel_job(db: AsyncSession, job: Job) -> Job:
+    if job.status not in (JobStatus.queued, JobStatus.running):
+        return job
+    job.status = JobStatus.cancelled
+    job.finished_at = datetime.now(UTC)
+    job.worker_id = None
+    app = await db.get(App, job.app_id)
+    if app:
+        await emit_event(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            job_id=job.id,
+            kind="job.cancelled",
+            message=f"Job {job.name} cancelled",
+            level="warning",
+        )
+    await db.flush()
+    _bust_overview()
+    return job
+
+
+async def cancel_jobs_bulk(db: AsyncSession, jobs: list[Job]) -> list[Job]:
+    out: list[Job] = []
+    for job in jobs:
+        out.append(await cancel_job(db, job))
+    return out
 
 
 async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
@@ -116,6 +171,7 @@ async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
             message=f"Job {job.name} succeeded",
         )
     await db.flush()
+    _bust_overview()
     return job
 
 
@@ -159,4 +215,5 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
             {"job_id": job.id, "name": job.name, "status": job.status.value},
         )
     await db.flush()
+    _bust_overview()
     return job

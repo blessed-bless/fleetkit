@@ -81,18 +81,62 @@ export const api = {
       method: "POST",
       body: JSON.stringify(body),
     }),
-  jobs: (projectId: string) =>
-    request<
+  jobs: (
+    projectId: string,
+    params?: { app_id?: string; status?: string; queue?: string; q?: string; limit?: number },
+  ) => {
+    const qs = new URLSearchParams();
+    if (params?.app_id) qs.set("app_id", params.app_id);
+    if (params?.status) qs.set("status", params.status);
+    if (params?.queue) qs.set("queue", params.queue);
+    if (params?.q) qs.set("q", params.q);
+    if (params?.limit) qs.set("limit", String(params.limit));
+    const suffix = qs.toString() ? `?${qs}` : "";
+    return request<
       Array<{
         id: string;
+        app_id: string;
         name: string;
         status: string;
         queue: string;
         attempt: number;
+        max_attempts: number;
+        payload: Record<string, unknown>;
+        result: Record<string, unknown> | null;
         created_at: string;
+        started_at: string | null;
+        finished_at: string | null;
         error: string | null;
       }>
-    >(`/api/v1/projects/${projectId}/jobs`),
+    >(`/api/v1/projects/${projectId}/jobs${suffix}`);
+  },
+  job: (projectId: string, jobId: string) =>
+    request<{
+      id: string;
+      app_id: string;
+      name: string;
+      status: string;
+      queue: string;
+      attempt: number;
+      max_attempts: number;
+      payload: Record<string, unknown>;
+      result: Record<string, unknown> | null;
+      created_at: string;
+      started_at: string | null;
+      finished_at: string | null;
+      error: string | null;
+    }>(`/api/v1/projects/${projectId}/jobs/${jobId}`),
+  jobLogs: (projectId: string, jobId: string, afterSeq = 0) =>
+    request<Array<{ id: string; seq: number; stream: string; line: string; created_at: string }>>(
+      `/api/v1/projects/${projectId}/jobs/${jobId}/logs?after_seq=${afterSeq}`,
+    ),
+  cancelJob: (projectId: string, jobId: string) =>
+    request(`/api/v1/projects/${projectId}/jobs/${jobId}/cancel`, { method: "POST" }),
+  cancelJobsBulk: (projectId: string, jobIds: string[]) =>
+    request(`/api/v1/projects/${projectId}/jobs/cancel-bulk`, {
+      method: "POST",
+      body: JSON.stringify({ job_ids: jobIds }),
+    }),
   createJob: (
     projectId: string,
     appId: string,
