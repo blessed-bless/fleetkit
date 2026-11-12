@@ -67,6 +67,15 @@ export const api = {
     request<Array<{ id: string; slug: string; name: string; description: string }>>(
       "/api/v1/projects",
     ),
+  createProject: (body: { name: string; slug: string; description?: string }) =>
+    request<{ id: string; slug: string; name: string; description: string }>(
+      "/api/v1/projects",
+      { method: "POST", body: JSON.stringify(body) },
+    ),
+  apiKeys: (projectId: string) =>
+    request<Array<{ id: string; name: string; key_prefix: string; created_at: string }>>(
+      `/api/v1/projects/${projectId}/api-keys`,
+    ),
   apps: (projectId: string) =>
     request<
       Array<{

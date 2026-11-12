@@ -282,6 +282,11 @@ export const messages = {
     "ops.import": "Импортировать",
     "ops.imported": "Импорт: {n} изменений",
     "ops.importFail": "Импорт не прошёл",
+    "settings.newProject": "Новый проект",
+    "settings.createProject": "Создать проект",
+    "settings.projectCreated": "Проект создан",
+    "settings.projectFail": "Проект не создался",
+    "settings.keysEmpty": "Ключей пока нет. Выпусти первый для воркера.",
     "lang.ru": "RU",
 
     "lang.en": "EN",
@@ -568,6 +573,11 @@ export const messages = {
     "ops.import": "Import",
     "ops.imported": "Import applied: {n} changes",
     "ops.importFail": "Import failed",
+    "settings.newProject": "New project",
+    "settings.createProject": "Create project",
+    "settings.projectCreated": "Project created",
+    "settings.projectFail": "Could not create project",
+    "settings.keysEmpty": "No keys yet. Mint the first one for a worker.",
     "lang.en": "EN",
   },
 } as const;
