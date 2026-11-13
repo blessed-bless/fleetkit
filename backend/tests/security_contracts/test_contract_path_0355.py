@@ -9,7 +9,6 @@ from fleetkit_api.security_suite.headers import sanitize_header_value
 from fleetkit_api.security_suite.password_policy import WeakPassword, validate_password
 from fleetkit_api.security_suite.ssrf import SSRFBlocked, assert_safe_url
 
-
 SAMPLE = '../../etc/passwd'
 FAMILY = 'path'
 
