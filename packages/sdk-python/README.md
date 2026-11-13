@@ -1,7 +1,9 @@
 # fleetkit (Python SDK)
 
 ```bash
-pip install -e .
+pip install fleetkit
+# or from a GitHub Release wheel:
+# pip install https://github.com/blessed-bless/fleetkit/releases/download/v0.1.0/fleetkit-0.1.0-py3-none-any.whl
 ```
 
 ```python
