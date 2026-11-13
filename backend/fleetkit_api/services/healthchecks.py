@@ -14,12 +14,23 @@ logger = logging.getLogger("fleetkit.health")
 
 
 async def run_health_check(db: AsyncSession, check: HealthCheck) -> HealthCheck:
+    from fleetkit_api.security_suite.ssrf import SSRFBlocked, assert_safe_url
+
     now = datetime.now(UTC)
     check.last_checked_at = now
     try:
         if check.kind == "http":
-            async with httpx.AsyncClient(timeout=check.timeout_seconds) as client:
-                resp = await client.get(check.target)
+            try:
+                target = assert_safe_url(str(check.target))
+            except SSRFBlocked as exc:
+                check.last_status = "down"
+                check.last_error = f"ssrf blocked: {exc}"
+                await db.flush()
+                return check
+            async with httpx.AsyncClient(
+                timeout=check.timeout_seconds, follow_redirects=False
+            ) as client:
+                resp = await client.get(target)
                 if resp.status_code >= 400:
                     check.last_status = "down"
                     check.last_error = f"HTTP {resp.status_code}"

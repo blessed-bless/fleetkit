@@ -19,13 +19,15 @@ X-FleetKit-Key: fk_...
 
 ```http
 POST /api/v1/hooks/{path_token}
-X-FleetKit-Signature: {endpoint.secret}
+X-FleetKit-Signature: {raw secret from create response}
 Content-Type: application/json
 
 {"event":"order.paid"}
 ```
 
 Creates a job named `target_job_name` (default `webhook.received`) on queue `webhooks`.
+The raw secret is returned once on create; list responses omit it.
+
 
 ## Errors
 

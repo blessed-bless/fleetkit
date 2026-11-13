@@ -164,6 +164,13 @@ async def health_create(
     app = await db.get(App, body.app_id)
     if app is None or app.project_id != project.id:
         raise HTTPException(status_code=404, detail="App не найдено")
+    if body.kind == "http":
+        from fleetkit_api.security_suite.ssrf import SSRFBlocked, assert_safe_url
+
+        try:
+            assert_safe_url(str(body.target))
+        except SSRFBlocked as exc:
+            raise HTTPException(status_code=400, detail=f"URL отклонён: {exc}") from exc
     row = HealthCheck(
         project_id=project.id,
         app_id=body.app_id,
