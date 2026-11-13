@@ -1,0 +1,102 @@
+# Production-oriented stack. Copy .env.production.example → .env and set secrets.
+# Pull published images, or build locally:
+#   docker compose -f docker-compose.prod.yml --env-file .env up -d
+# Or from GHCR after a release:
+#   FLEETKIT_IMAGE_TAG=0.1.0 docker compose -f docker-compose.prod.yml --env-file .env up -d
+
+x-api-env: &api-env
+  FLEETKIT_ENV: production
+  FLEETKIT_DATABASE_URL: postgresql+asyncpg://${POSTGRES_USER:-fleetkit}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-fleetkit}
+  FLEETKIT_REDIS_URL: redis://redis:6379/0
+  FLEETKIT_CORS_ORIGINS: ${FLEETKIT_CORS_ORIGINS:-http://localhost:8080}
+  FLEETKIT_SECRET_KEY: ${FLEETKIT_SECRET_KEY:?set FLEETKIT_SECRET_KEY}
+  FLEETKIT_BOOTSTRAP_EMAIL: ${FLEETKIT_BOOTSTRAP_EMAIL:-admin@example.com}
+  FLEETKIT_BOOTSTRAP_PASSWORD: ${FLEETKIT_BOOTSTRAP_PASSWORD:?set FLEETKIT_BOOTSTRAP_PASSWORD}
+
+services:
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: ${POSTGRES_USER:-fleetkit}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:?set POSTGRES_PASSWORD}
+      POSTGRES_DB: ${POSTGRES_DB:-fleetkit}
+    volumes:
+      - fleetkit_pg:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U ${POSTGRES_USER:-fleetkit} -d ${POSTGRES_DB:-fleetkit}"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    command: ["redis-server", "--appendonly", "yes"]
+    volumes:
+      - fleetkit_redis:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+
+  api:
+    image: ${FLEETKIT_API_IMAGE:-ghcr.io/blessed-bless/fleetkit-api}:${FLEETKIT_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
+
+  worker:
+    image: ${FLEETKIT_API_IMAGE:-ghcr.io/blessed-bless/fleetkit-api}:${FLEETKIT_IMAGE_TAG:-latest}
+    build:
+      context: .
+      dockerfile: backend/Dockerfile
+    command: ["python", "-m", "fleetkit_worker"]
+    restart: unless-stopped
+    environment:
+      <<: *api-env
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      api:
+        condition: service_healthy
+
+  web:
+    image: ${FLEETKIT_WEB_IMAGE:-ghcr.io/blessed-bless/fleetkit-web}:${FLEETKIT_IMAGE_TAG:-latest}
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
+    restart: unless-stopped
+    ports:
+      - "${FLEETKIT_HTTP_PORT:-8080}:80"
+    depends_on:
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
+
+volumes:
+  fleetkit_pg:
+  fleetkit_redis:
