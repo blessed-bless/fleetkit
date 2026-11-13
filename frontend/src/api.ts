@@ -1,4 +1,15 @@
-const API_BASE = import.meta.env.VITE_API_URL?.replace(/\/$/, "") || "http://localhost:8000";
+function resolveApiBase(): string {
+  const raw = import.meta.env.VITE_API_URL;
+  if (raw === undefined) {
+    // Vite dev defaults to the local API; production Docker builds leave this empty
+    // so the UI talks to the same origin (nginx proxies /api and /healthz).
+    return import.meta.env.DEV ? "http://localhost:8000" : "";
+  }
+  return String(raw).replace(/\/$/, "");
+}
+
+const API_BASE = resolveApiBase();
+
 
 export const tokenStore = {
   get: () => localStorage.getItem("fleetkit_token"),

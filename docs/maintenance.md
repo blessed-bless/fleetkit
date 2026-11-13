@@ -1,5 +1,5 @@
 ﻿# Maintenance
 
-Last housekeeping pass: docs and links verified for the public repo.
+Last housekeeping pass: production compose, release workflow (GHCR + GitHub Releases), package metadata, same-origin nginx proxy.
 
-See also: [Architecture](architecture.md), [API](api.md).
+See also: [Architecture](architecture.md), [API](api.md), [Release](release.md).
