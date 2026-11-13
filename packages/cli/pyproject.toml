@@ -6,14 +6,30 @@ build-backend = "setuptools.build_meta"
 name = "fleetkit-cli"
 version = "0.1.0"
 description = "CLI for FleetKit control plane"
+readme = "README.md"
 requires-python = ">=3.11"
-license = { text = "MIT" }
+license = "MIT"
 authors = [{ name = "Bogdan Shcherbinin" }]
+keywords = ["fleetkit", "cli", "workers", "jobs", "automation"]
+classifiers = [
+  "Development Status :: 4 - Beta",
+  "Environment :: Console",
+  "Programming Language :: Python :: 3",
+  "Programming Language :: Python :: 3.11",
+  "Programming Language :: Python :: 3.12",
+]
 dependencies = [
   "httpx>=0.28.0",
   "typer>=0.15.0",
   "rich>=13.9.0",
 ]
+
+[project.urls]
+Homepage = "https://github.com/blessed-bless/fleetkit"
+Documentation = "https://github.com/blessed-bless/fleetkit/blob/master/docs/cli.md"
+Changelog = "https://github.com/blessed-bless/fleetkit/blob/master/CHANGELOG.md"
+Issues = "https://github.com/blessed-bless/fleetkit/issues"
+Releases = "https://github.com/blessed-bless/fleetkit/releases"
 
 [project.scripts]
 fleetkit = "fleetkit_cli.main:app"

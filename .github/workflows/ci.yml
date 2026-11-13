@@ -36,6 +36,7 @@ jobs:
           cache: npm
           cache-dependency-path: frontend/package-lock.json
       - run: npm ci
+      - run: npm run lint
       - run: npm run build
 
   sdk:
@@ -48,5 +49,30 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]"
-      - run: python -c "from fleetkit import FleetKit; print(FleetKit)"
+      - run: pip install -e ".[dev]" build
+      - run: pytest -q
+      - run: python -m build
+      - run: python -c "from fleetkit import FleetKit, __version__; print(__version__, FleetKit)"
+
+  cli:
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: packages/cli
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e . build
+      - run: python -m build
+      - run: fleetkit --help
+
+  docker:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - name: Build API image
+        run: docker build -f backend/Dockerfile -t fleetkit-api:ci .
+      - name: Build web image
+        run: docker build -f frontend/Dockerfile --build-arg VITE_API_URL= -t fleetkit-web:ci ./frontend
