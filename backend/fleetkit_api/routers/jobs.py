@@ -6,9 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_project_by_api_key, get_project_for_user
+from fleetkit_api.deps import get_project_by_api_key, get_project_for_user, require_permission
 from fleetkit_api.models import App, Job, JobStatus, Project, Worker
 from fleetkit_api.schemas import JobCompleteIn, JobCreate, JobFailIn, JobOut
+from fleetkit_api.security_suite.rbac import Permission
 from fleetkit_api.services.jobs import (
     cancel_job,
     cancel_jobs_bulk,
@@ -84,7 +85,7 @@ async def get_job(
 @router.post("/projects/{project_id}/jobs/{job_id}/cancel", response_model=JobOut)
 async def cancel_one(
     job_id: str,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.job_enqueue)),
     db: AsyncSession = Depends(get_db),
 ) -> Job:
     job = await _job_in_project(db, project, job_id)
@@ -97,7 +98,7 @@ async def cancel_one(
 @router.post("/projects/{project_id}/jobs/cancel-bulk", response_model=list[JobOut])
 async def cancel_bulk(
     body: JobBulkCancelIn,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.job_enqueue)),
     db: AsyncSession = Depends(get_db),
 ) -> list[Job]:
     jobs: list[Job] = []
@@ -117,7 +118,7 @@ async def cancel_bulk(
 async def create_job(
     app_id: str,
     body: JobCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.job_enqueue)),
     db: AsyncSession = Depends(get_db),
 ) -> Job:
     app = await _app_in_project(db, project, app_id)

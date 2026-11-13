@@ -6,9 +6,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_project_for_user
+from fleetkit_api.deps import get_project_for_user, require_permission
 from fleetkit_api.models import App, Project, Schedule
 from fleetkit_api.schemas import ScheduleCreate, ScheduleOut
+from fleetkit_api.security_suite.rbac import Permission
 from fleetkit_api.services.schedules import compute_next_run
 
 router = APIRouter(tags=["schedules"])
@@ -42,7 +43,7 @@ async def list_schedules(
 async def create_schedule(
     app_id: str,
     body: ScheduleCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.app_write)),
     db: AsyncSession = Depends(get_db),
 ) -> Schedule:
     app = await db.get(App, app_id)
@@ -71,7 +72,7 @@ async def create_schedule(
 async def patch_schedule(
     schedule_id: str,
     body: SchedulePatch,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.app_write)),
     db: AsyncSession = Depends(get_db),
 ) -> Schedule:
     schedule = await db.get(Schedule, schedule_id)

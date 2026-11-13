@@ -3,6 +3,8 @@
 ## Control plane
 
 - Projects, apps, API keys, JWT dashboard auth
+- Multi-user RBAC: owner / admin / operator / viewer on project routes
+- Invites (create / accept / decline / revoke) + local register
 - Job queue with claim/complete/fail, retry + jitter backoff
 - Dead letter queue + requeue
 - Cron schedules

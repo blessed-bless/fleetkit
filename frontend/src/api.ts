@@ -44,6 +44,11 @@ export const api = {
       method: "POST",
       body: JSON.stringify({ email, password }),
     }),
+  register: (email: string, password: string, display_name?: string) =>
+    request<{ access_token: string }>("/api/v1/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, password, display_name: display_name || "" }),
+    }),
   me: () => request<{ id: string; email: string; display_name: string }>("/api/v1/auth/me"),
   overview: () =>
     request<{
@@ -62,9 +67,71 @@ export const api = {
       }>;
     }>("/api/v1/overview"),
   projects: () =>
-    request<Array<{ id: string; slug: string; name: string; description: string }>>(
-      "/api/v1/projects",
+    request<
+      Array<{ id: string; slug: string; name: string; description: string; role?: string | null }>
+    >("/api/v1/projects"),
+  members: (projectId: string) =>
+    request<
+      Array<{
+        id: string;
+        user_id: string;
+        email: string | null;
+        display_name: string | null;
+        role: string;
+        created_at: string;
+      }>
+    >(`/api/v1/projects/${projectId}/members`),
+  updateMemberRole: (projectId: string, memberId: string, role: string) =>
+    request(`/api/v1/projects/${projectId}/members/${memberId}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  removeMember: (projectId: string, memberId: string) =>
+    request<void>(`/api/v1/projects/${projectId}/members/${memberId}`, { method: "DELETE" }),
+  projectInvites: (projectId: string) =>
+    request<
+      Array<{
+        id: string;
+        email: string;
+        role: string;
+        token: string;
+        accepted: boolean;
+        created_at: string;
+      }>
+    >(`/api/v1/projects/${projectId}/invites`),
+  createInvite: (projectId: string, body: { email: string; role: string }) =>
+    request<{
+      id: string;
+      email: string;
+      role: string;
+      token: string;
+      accepted: boolean;
+      created_at: string;
+    }>(`/api/v1/projects/${projectId}/invites`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  revokeInvite: (projectId: string, inviteId: string) =>
+    request<void>(`/api/v1/projects/${projectId}/invites/${inviteId}`, { method: "DELETE" }),
+  myInvites: () =>
+    request<
+      Array<{
+        id: string;
+        project_id?: string | null;
+        email: string;
+        role: string;
+        token: string;
+        accepted: boolean;
+        created_at: string;
+      }>
+    >("/api/v1/me/invites"),
+  acceptInvite: (token: string) =>
+    request<{ project_id: string; role: string; member_id: string }>(
+      `/api/v1/invites/${encodeURIComponent(token)}/accept`,
+      { method: "POST" },
     ),
+  declineInvite: (token: string) =>
+    request<void>(`/api/v1/invites/${encodeURIComponent(token)}/decline`, { method: "POST" }),
   apps: (projectId: string) =>
     request<
       Array<{

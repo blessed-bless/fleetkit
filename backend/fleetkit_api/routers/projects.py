@@ -5,10 +5,16 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_current_user, get_project_for_user
+from fleetkit_api.deps import get_current_user, require_access, require_permission
 from fleetkit_api.models import ApiKey, Project, User, _api_key
 from fleetkit_api.schemas import ApiKeyCreate, ApiKeyOut, ProjectCreate, ProjectOut
 from fleetkit_api.security import hash_api_key
+from fleetkit_api.security_suite.rbac import Permission
+from fleetkit_api.services.membership import (
+    ProjectAccess,
+    ensure_owner_membership,
+    list_accessible_projects,
+)
 
 router = APIRouter(prefix="/projects", tags=["projects"])
 
@@ -17,11 +23,19 @@ router = APIRouter(prefix="/projects", tags=["projects"])
 async def list_projects(
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> list[Project]:
-    result = await db.execute(
-        select(Project).where(Project.owner_id == user.id).order_by(Project.created_at.desc())
-    )
-    return list(result.scalars().all())
+) -> list[ProjectOut]:
+    rows = await list_accessible_projects(db, user)
+    return [
+        ProjectOut(
+            id=project.id,
+            slug=project.slug,
+            name=project.name,
+            description=project.description,
+            created_at=project.created_at,
+            role=role.value,
+        )
+        for project, role in rows
+    ]
 
 
 @router.post("", response_model=ProjectOut, status_code=201)
@@ -29,7 +43,7 @@ async def create_project(
     body: ProjectCreate,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
-) -> Project:
+) -> ProjectOut:
     existing = await db.execute(select(Project).where(Project.slug == body.slug))
     if existing.scalar_one_or_none():
         raise HTTPException(status_code=409, detail="Slug уже занят")
@@ -40,19 +54,38 @@ async def create_project(
         description=body.description,
     )
     db.add(project)
+    await db.flush()
+    await ensure_owner_membership(db, project_id=project.id, user_id=user.id)
     await db.commit()
     await db.refresh(project)
-    return project
+    return ProjectOut(
+        id=project.id,
+        slug=project.slug,
+        name=project.name,
+        description=project.description,
+        created_at=project.created_at,
+        role="owner",
+    )
 
 
 @router.get("/{project_id}", response_model=ProjectOut)
-async def get_project(project: Project = Depends(get_project_for_user)) -> Project:
-    return project
+async def get_project(
+    access: ProjectAccess = Depends(require_access(Permission.project_read)),
+) -> ProjectOut:
+    project = access.project
+    return ProjectOut(
+        id=project.id,
+        slug=project.slug,
+        name=project.name,
+        description=project.description,
+        created_at=project.created_at,
+        role=access.role.value,
+    )
 
 
 @router.get("/{project_id}/api-keys", response_model=list[ApiKeyOut])
 async def list_api_keys(
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.project_write)),
     db: AsyncSession = Depends(get_db),
 ) -> list[ApiKeyOut]:
     result = await db.execute(
@@ -77,7 +110,7 @@ async def list_api_keys(
 @router.post("/{project_id}/api-keys", response_model=ApiKeyOut, status_code=201)
 async def create_api_key(
     body: ApiKeyCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.project_write)),
     db: AsyncSession = Depends(get_db),
 ) -> ApiKeyOut:
     raw = _api_key()

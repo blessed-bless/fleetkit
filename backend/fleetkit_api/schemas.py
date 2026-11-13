@@ -39,8 +39,15 @@ class ProjectOut(BaseModel):
     name: str
     description: str
     created_at: datetime
+    role: str | None = None
 
     model_config = {"from_attributes": True}
+
+
+class RegisterIn(BaseModel):
+    email: EmailStr
+    password: str = Field(min_length=10, max_length=128)
+    display_name: str = Field(default="", max_length=120)
 
 
 class ApiKeyCreate(BaseModel):

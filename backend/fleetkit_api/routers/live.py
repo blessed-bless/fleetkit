@@ -2,14 +2,14 @@ from __future__ import annotations
 
 import asyncio
 
-from fastapi import APIRouter, WebSocket, WebSocketDisconnect
+from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 from jose import JWTError
-from sqlalchemy import select
 
 from fleetkit_api.db import SessionLocal
-from fleetkit_api.models import Project, User
+from fleetkit_api.models import User
 from fleetkit_api.security import decode_access_token
 from fleetkit_api.services.live import live_hub
+from fleetkit_api.services.membership import resolve_project_access
 
 router = APIRouter(tags=["live"])
 
@@ -34,20 +34,11 @@ async def project_live(websocket: WebSocket, project_id: str) -> None:
         await websocket.close(code=4401)
         return
     async with SessionLocal() as db:
-        project = await db.get(Project, project_id)
-        if project is None or project.owner_id != user.id:
-            # also allow members
-            from fleetkit_api.models_ext import ProjectMember
-
-            member = await db.scalar(
-                select(ProjectMember).where(
-                    ProjectMember.project_id == project_id,
-                    ProjectMember.user_id == user.id,
-                )
-            )
-            if member is None and (project is None or project.owner_id != user.id):
-                await websocket.close(code=4403)
-                return
+        try:
+            await resolve_project_access(db, project_id=project_id, user=user)
+        except HTTPException:
+            await websocket.close(code=4403)
+            return
 
     await websocket.accept()
     queue = await live_hub.subscribe(project_id)

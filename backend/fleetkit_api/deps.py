@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+from collections.abc import Callable
 from datetime import UTC, datetime
 
 from fastapi import Depends, Header, HTTPException, status
@@ -10,6 +11,12 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fleetkit_api.db import get_db
 from fleetkit_api.models import ApiKey, Project, User
 from fleetkit_api.security import decode_access_token, hash_api_key
+from fleetkit_api.security_suite.rbac import Permission
+from fleetkit_api.services.membership import (
+    ProjectAccess,
+    assert_permission,
+    resolve_project_access,
+)
 
 bearer = HTTPBearer(auto_error=False)
 
@@ -33,15 +40,35 @@ async def get_current_user(
     return user
 
 
-async def get_project_for_user(
+async def get_project_access(
     project_id: str,
     user: User = Depends(get_current_user),
     db: AsyncSession = Depends(get_db),
+) -> ProjectAccess:
+    return await resolve_project_access(db, project_id=project_id, user=user)
+
+
+async def get_project_for_user(
+    access: ProjectAccess = Depends(get_project_access),
 ) -> Project:
-    project = await db.get(Project, project_id)
-    if project is None or project.owner_id != user.id:
-        raise HTTPException(status_code=404, detail="Проект не найден")
-    return project
+    """Any project member (or owner). Use require_permission for write/sensitive routes."""
+    return access.project
+
+
+def require_permission(permission: Permission) -> Callable[..., Project]:
+    async def _dep(access: ProjectAccess = Depends(get_project_access)) -> Project:
+        assert_permission(access, permission)
+        return access.project
+
+    return _dep
+
+
+def require_access(permission: Permission) -> Callable[..., ProjectAccess]:
+    async def _dep(access: ProjectAccess = Depends(get_project_access)) -> ProjectAccess:
+        assert_permission(access, permission)
+        return access
+
+    return _dep
 
 
 async def get_project_by_api_key(

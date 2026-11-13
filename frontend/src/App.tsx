@@ -9,8 +9,15 @@ import { SearchPage } from "./pages/SearchPage";
 import { MetricsPage } from "./pages/MetricsPage";
 import { SecretsPage } from "./pages/SecretsPage";
 import { SchedulesPage } from "./pages/SchedulesPage";
+import { TeamPage } from "./pages/TeamPage";
 
-type Project = { id: string; slug: string; name: string; description: string };
+type Project = {
+  id: string;
+  slug: string;
+  name: string;
+  description: string;
+  role?: string | null;
+};
 type JobRow = Awaited<ReturnType<typeof api.jobs>>[number];
 
 function useAuth() {
@@ -54,6 +61,7 @@ function Shell({
     ["/secrets", "Секреты"],
     ["/search", "Поиск"],
     ["/metrics", "Метрики"],
+    ["/team", "Команда"],
     ["/settings", "Ключи"],
   ] as const;
 
@@ -88,8 +96,10 @@ function Shell({
 }
 
 function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
+  const [mode, setMode] = useState<"login" | "register">("login");
   const [email, setEmail] = useState("admin@example.com");
   const [password, setPassword] = useState("fleetkit-admin");
+  const [displayName, setDisplayName] = useState("");
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(false);
 
@@ -98,11 +108,20 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
     setBusy(true);
     setError("");
     try {
-      const tok = await api.login(email, password);
+      const tok =
+        mode === "login"
+          ? await api.login(email, password)
+          : await api.register(email, password, displayName);
       tokenStore.set(tok.access_token);
       onLogin(email);
     } catch (err) {
-      setError(err instanceof ApiError ? err.message : "Не удалось войти");
+      setError(
+        err instanceof ApiError
+          ? err.message
+          : mode === "login"
+            ? "Не удалось войти"
+            : "Не удалось зарегистрироваться",
+      );
     } finally {
       setBusy(false);
     }
@@ -118,6 +137,17 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
           <h1>Control plane</h1>
           <p className="muted">Боты, воркеры и cron — одна очередь, один экран.</p>
         </div>
+        {mode === "register" ? (
+          <div className="field">
+            <label htmlFor="display-name">Имя</label>
+            <input
+              id="display-name"
+              value={displayName}
+              onChange={(e) => setDisplayName(e.target.value)}
+              placeholder="Как тебя показать в команде"
+            />
+          </div>
+        ) : null}
         <div className="field">
           <label htmlFor="email">Email</label>
           <input id="email" value={email} onChange={(e) => setEmail(e.target.value)} />
@@ -130,10 +160,38 @@ function LoginPage({ onLogin }: { onLogin: (email: string) => void }) {
             value={password}
             onChange={(e) => setPassword(e.target.value)}
           />
+          {mode === "register" ? (
+            <p className="muted" style={{ margin: "6px 0 0", fontSize: "0.85rem" }}>
+              От 10 символов, смешанный регистр и цифры/символы. Bootstrap-пароль сюда не подойдёт.
+            </p>
+          ) : null}
         </div>
         {error ? <p className="error">{error}</p> : null}
         <button className="btn" disabled={busy} type="submit">
-          {busy ? "Проверяем..." : "Войти"}
+          {busy
+            ? mode === "login"
+              ? "Проверяем..."
+              : "Создаём аккаунт..."
+            : mode === "login"
+              ? "Войти"
+              : "Зарегистрироваться"}
+        </button>
+        <button
+          className="btn ghost"
+          type="button"
+          onClick={() => {
+            setMode(mode === "login" ? "register" : "login");
+            setError("");
+            if (mode === "login") {
+              setEmail("");
+              setPassword("");
+            } else {
+              setEmail("admin@example.com");
+              setPassword("fleetkit-admin");
+            }
+          }}
+        >
+          {mode === "login" ? "Нет аккаунта — зарегистрироваться" : "Уже есть аккаунт — войти"}
         </button>
       </form>
     </div>
@@ -178,7 +236,7 @@ function ProjectPicker({
       <select id="project" value={projectId} onChange={(e) => onChange(e.target.value)}>
         {projects.map((p) => (
           <option key={p.id} value={p.id}>
-            {p.name} ({p.slug})
+            {p.name} ({p.slug}){p.role ? ` · ${p.role}` : ""}
           </option>
         ))}
       </select>
@@ -192,6 +250,89 @@ function statusBadge(status: string) {
   if (status === "running") return "run";
   if (status === "queued" || status === "cancelled") return "warn";
   return "";
+}
+
+function PendingInvitesBanner() {
+  const [invites, setInvites] = useState<Awaited<ReturnType<typeof api.myInvites>>>([]);
+  const [msg, setMsg] = useState("");
+
+  async function reload() {
+    setInvites(await api.myInvites());
+  }
+
+  useEffect(() => {
+    reload().catch(() => setInvites([]));
+  }, []);
+
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const token = params.get("invite");
+    if (!token) return;
+    api
+      .acceptInvite(token)
+      .then(async () => {
+        setMsg("Инвайт принят — проект появится в списке.");
+        params.delete("invite");
+        const next = params.toString();
+        window.history.replaceState({}, "", next ? `/?${next}` : "/");
+        await reload();
+        window.location.reload();
+      })
+      .catch((err) => {
+        setMsg(err instanceof Error ? err.message : "Не принялся инвайт из ссылки");
+      });
+  }, []);
+
+  if (!invites.length && !msg) return null;
+
+  return (
+    <section className="panel stack-gap">
+      <h2 style={{ margin: 0 }}>Тебя пригласили</h2>
+      {msg ? <p className="muted">{msg}</p> : null}
+      {invites.map((inv) => (
+        <div key={inv.id} className="row" style={{ alignItems: "center", gap: 12 }}>
+          <div style={{ flex: 1 }}>
+            <div>
+              {inv.email} → роль <code>{inv.role}</code>
+            </div>
+            <div className="muted" style={{ fontSize: "0.85rem" }}>
+              проект {inv.project_id || "?"}
+            </div>
+          </div>
+          <button
+            className="btn"
+            type="button"
+            onClick={async () => {
+              try {
+                await api.acceptInvite(inv.token);
+                setMsg("Добро пожаловать в проект");
+                await reload();
+                window.location.reload();
+              } catch (err) {
+                setMsg(err instanceof Error ? err.message : "Не принялся инвайт");
+              }
+            }}
+          >
+            Принять
+          </button>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={async () => {
+              try {
+                await api.declineInvite(inv.token);
+                await reload();
+              } catch (err) {
+                setMsg(err instanceof Error ? err.message : "Не отклонился");
+              }
+            }}
+          >
+            Отклонить
+          </button>
+        </div>
+      ))}
+    </section>
+  );
 }
 
 function OverviewPage() {
@@ -237,6 +378,7 @@ function OverviewPage() {
           <i /> {live.connected ? "ws live" : "polling"}
         </span>
       </div>
+      <PendingInvitesBanner />
       <div className="grid stats">
         <div className="stat">
           <div className="label">Проекты</div>
@@ -797,10 +939,16 @@ function SchedulesRoute() {
   );
 }
 
-function SettingsPage() {
+function TeamRoute() {
   const { projects, projectId, setProjectId } = useProject();
+  return <TeamPage projects={projects} projectId={projectId} onProjectChange={setProjectId} />;
+}
+
+function SettingsPage() {
+  const { projects, project, projectId, setProjectId } = useProject();
   const [secret, setSecret] = useState("");
   const [msg, setMsg] = useState("");
+  const canMint = !project?.role || project.role === "owner" || project.role === "admin";
 
   async function mint() {
     if (!projectId) return;
@@ -826,9 +974,13 @@ function SettingsPage() {
         <p className="muted">
           Клади ключ в <code>X-FleetKit-Key</code> или в SDK. Не коммить в git.
         </p>
-        <button className="btn" type="button" onClick={mint}>
-          Выпустить ключ
-        </button>
+        {canMint ? (
+          <button className="btn" type="button" onClick={mint}>
+            Выпустить ключ
+          </button>
+        ) : (
+          <p className="muted">Выпуск ключей только для admin/owner. Твоя роль: {project?.role}.</p>
+        )}
         {msg ? <p className="muted">{msg}</p> : null}
         {secret ? <pre className="log-box">{secret}</pre> : null}
       </section>
@@ -878,6 +1030,7 @@ export default function App() {
         <Route path="/secrets" element={<SecretsRoute />} />
         <Route path="/search" element={<SearchRoute />} />
         <Route path="/metrics" element={<MetricsRoute />} />
+        <Route path="/team" element={<TeamRoute />} />
         <Route path="/settings" element={<SettingsPage />} />
         <Route path="*" element={<Navigate to="/" replace />} />
       </Routes>

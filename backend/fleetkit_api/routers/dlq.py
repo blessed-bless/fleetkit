@@ -4,10 +4,11 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_project_for_user
+from fleetkit_api.deps import get_project_for_user, require_permission
 from fleetkit_api.models import Project
 from fleetkit_api.models_ext import DeadLetter
 from fleetkit_api.schemas_ext import DeadLetterOut
+from fleetkit_api.security_suite.rbac import Permission
 from fleetkit_api.services.dlq import list_dead_letters, requeue_dead_letter
 
 router = APIRouter(tags=["dlq"])
@@ -24,7 +25,7 @@ async def get_dlq(
 @router.post("/projects/{project_id}/dead-letters/{dlq_id}/requeue")
 async def requeue(
     dlq_id: str,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.job_enqueue)),
     db: AsyncSession = Depends(get_db),
 ) -> dict:
     item = await db.get(DeadLetter, dlq_id)

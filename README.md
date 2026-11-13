@@ -7,11 +7,12 @@ Self-hosted control plane for a fleet of bots, Python workers, cron jobs and inb
 ## Что внутри
 
 - **API** — FastAPI, JWT для UI, API-ключи для агентов
+- **RBAC** — роли owner/admin/operator/viewer, инвайты, регистрация
 - **Queue** — jobs с retry, timeout, claim через `FOR UPDATE SKIP LOCKED`
 - **Workers** — register + heartbeat + claim/complete/fail
 - **Schedules** — cron → job
 - **Webhooks** — публичный ingest с секретом → job
-- **Dashboard** — React (обзор, apps, jobs, workers, ключи)
+- **Dashboard** — React (обзор, apps, jobs, workers, команда, ключи)
 - **SDK** — `packages/sdk-python` (sync + async)
 - **CLI** — `packages/cli` (`fleetkit login|overview|enqueue|dlq|...`)
 - **Alerts** — правила вида `queue.depth>20`, каналы Telegram/webhook

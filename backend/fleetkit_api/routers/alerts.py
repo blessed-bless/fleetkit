@@ -5,7 +5,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_project_for_user
+from fleetkit_api.deps import get_project_for_user, require_permission
 from fleetkit_api.models import Project
 from fleetkit_api.models_ext import (
     AlertFire,
@@ -20,6 +20,7 @@ from fleetkit_api.schemas_ext import (
     ChannelCreate,
     ChannelOut,
 )
+from fleetkit_api.security_suite.rbac import Permission
 from fleetkit_api.services.alerts import evaluate_project_alerts, parse_severity
 from fleetkit_api.services.audit import write_audit
 
@@ -42,7 +43,7 @@ async def list_channels(
 @router.post("/projects/{project_id}/channels", response_model=ChannelOut, status_code=201)
 async def create_channel(
     body: ChannelCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.alert_write)),
     db: AsyncSession = Depends(get_db),
 ) -> NotificationChannel:
     try:
@@ -82,7 +83,7 @@ async def list_rules(
 @router.post("/projects/{project_id}/alert-rules", response_model=AlertRuleOut, status_code=201)
 async def create_rule(
     body: AlertRuleCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.alert_write)),
     db: AsyncSession = Depends(get_db),
 ) -> AlertRule:
     rule = AlertRule(
@@ -115,7 +116,7 @@ async def list_fires(
 
 @router.post("/projects/{project_id}/alerts/evaluate")
 async def evaluate_now(
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.alert_write)),
     db: AsyncSession = Depends(get_db),
 ) -> dict[str, int]:
     fired = await evaluate_project_alerts(db, project.id)

@@ -5,9 +5,10 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_project_for_user
+from fleetkit_api.deps import get_project_for_user, require_permission
 from fleetkit_api.models import App, Project
 from fleetkit_api.schemas import AppCreate, AppOut, AppUpdate
+from fleetkit_api.security_suite.rbac import Permission
 from fleetkit_api.services.events import emit_event
 
 router = APIRouter(tags=["apps"])
@@ -27,7 +28,7 @@ async def list_apps(
 @router.post("/projects/{project_id}/apps", response_model=AppOut, status_code=201)
 async def create_app(
     body: AppCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.app_write)),
     db: AsyncSession = Depends(get_db),
 ) -> App:
     existing = await db.execute(
@@ -60,7 +61,7 @@ async def create_app(
 async def update_app(
     app_id: str,
     body: AppUpdate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_permission(Permission.app_write)),
     db: AsyncSession = Depends(get_db),
 ) -> App:
     app = await db.get(App, app_id)

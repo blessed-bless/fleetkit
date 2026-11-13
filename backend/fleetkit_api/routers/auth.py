@@ -5,11 +5,37 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_current_user
 from fleetkit_api.models import User
-from fleetkit_api.schemas import LoginIn, TokenOut, UserOut
-from fleetkit_api.security import create_access_token, verify_password
+from fleetkit_api.schemas import LoginIn, RegisterIn, TokenOut, UserOut
+from fleetkit_api.security import create_access_token, hash_password, verify_password
 from fleetkit_api.security_suite.auth_hardening import login_protector
+from fleetkit_api.security_suite.password_policy import WeakPassword, validate_password
 
 router = APIRouter(prefix="/auth", tags=["auth"])
+
+
+@router.post("/register", response_model=TokenOut, status_code=201)
+async def register(body: RegisterIn, db: AsyncSession = Depends(get_db)) -> TokenOut:
+    email = body.email.lower()
+    try:
+        validate_password(body.password)
+    except WeakPassword as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
+
+    existing = await db.scalar(select(User).where(User.email == email))
+    if existing is not None:
+        raise HTTPException(status_code=409, detail="Такой email уже зарегистрирован")
+
+    display = body.display_name.strip() or email.split("@")[0]
+    user = User(
+        email=email,
+        password_hash=hash_password(body.password),
+        display_name=display,
+    )
+    db.add(user)
+    await db.commit()
+    await db.refresh(user)
+    token = create_access_token(user.id, extra={"email": user.email})
+    return TokenOut(access_token=token)
 
 
 @router.post("/login", response_model=TokenOut)

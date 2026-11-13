@@ -8,6 +8,7 @@ from fleetkit_api.config import get_settings
 from fleetkit_api.db import SessionLocal
 from fleetkit_api.models import Project, User
 from fleetkit_api.security import hash_password
+from fleetkit_api.services.membership import backfill_owner_memberships, ensure_owner_membership
 
 logger = logging.getLogger("fleetkit.bootstrap")
 
@@ -32,19 +33,29 @@ async def ensure_bootstrap_admin() -> None:
                 description="Автосозданный проект для быстрого старта",
             )
             db.add(project)
+            await db.flush()
+            await ensure_owner_membership(db, project_id=project.id, user_id=user.id)
             await db.commit()
             logger.info("Bootstrap admin created: %s / project=default", settings.bootstrap_email)
-            return
-
-        result = await db.execute(select(Project).where(Project.owner_id == user.id).limit(1))
-        if result.scalar_one_or_none() is None:
-            db.add(
-                Project(
+        else:
+            result = await db.execute(select(Project).where(Project.owner_id == user.id).limit(1))
+            project = result.scalar_one_or_none()
+            if project is None:
+                project = Project(
                     owner_id=user.id,
                     slug="default",
                     name="Default",
                     description="Автосозданный проект для быстрого старта",
                 )
-            )
+                db.add(project)
+                await db.flush()
+                await ensure_owner_membership(db, project_id=project.id, user_id=user.id)
+                await db.commit()
+                logger.info("Bootstrap project created for %s", settings.bootstrap_email)
+
+        filled = await backfill_owner_memberships(db)
+        if filled:
             await db.commit()
-            logger.info("Bootstrap project created for %s", settings.bootstrap_email)
+            logger.info("Backfilled owner membership for %s project(s)", filled)
+        else:
+            await db.commit()

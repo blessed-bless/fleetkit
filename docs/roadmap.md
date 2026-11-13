@@ -6,14 +6,15 @@ Already shipped in 0.1.x:
 - alerts / secrets / DLQ / metrics / logs
 - CLI + SDK + recipes
 - export/import, quotas, live WS
+- multi-user RBAC (roles owner/admin/operator/viewer), invites, register
 
 Next candidates:
 
-1. Multi-user RBAC enforcement on every route (models already exist)
-2. Persistent Redis streams as optional queue backend
-3. S3/MinIO artifact store for job outputs
-4. OIDC login
-5. Per-app autoscaling suggestions from metrics
-6. Helm chart
-7. Mobile-friendly compact dashboard mode
-8. Signed worker attestation
+1. Persistent Redis streams as optional queue backend
+2. S3/MinIO artifact store for job outputs
+3. OIDC login
+4. Per-app autoscaling suggestions from metrics
+5. Helm chart
+6. Mobile-friendly compact dashboard mode
+7. Signed worker attestation
+8. Email delivery for invites + ownership transfer UI

@@ -8,9 +8,10 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.db import get_db
 from fleetkit_api.deps import get_current_user
-from fleetkit_api.models import App, Event, Job, JobStatus, Project, User, Worker, WorkerStatus
+from fleetkit_api.models import App, Event, Job, JobStatus, User, Worker, WorkerStatus
 from fleetkit_api.schemas import EventOut, OverviewOut
 from fleetkit_api.services.cache import overview_cache
+from fleetkit_api.services.membership import accessible_project_ids
 
 router = APIRouter(tags=["overview"])
 
@@ -25,12 +26,8 @@ async def overview(
     if cached is not None:
         return cached
 
-    projects_count = await db.scalar(
-        select(func.count()).select_from(Project).where(Project.owner_id == user.id)
-    )
-    project_ids = (
-        await db.execute(select(Project.id).where(Project.owner_id == user.id))
-    ).scalars().all()
+    project_ids = await accessible_project_ids(db, user)
+    projects_count = len(project_ids)
 
     if not project_ids:
         empty = OverviewOut(
