@@ -16,3 +16,8 @@ cd ../frontend && npm ci && npm run lint && npm run build
 cd ../packages/sdk-python && pip install -e ".[dev]" && pytest -q
 cd ../cli && pip install -e . && fleetkit --help
 ```
+
+## Authorship
+
+Commits and tags: `Bogdan Shcherbinin <blessed-bless@users.noreply.github.com>` only.
+No AI / Cursor / bot authors, no `Co-authored-by` for agents. See `AGENTS.md`.
