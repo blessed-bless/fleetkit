@@ -1,0 +1,665 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>FleetKit — control plane для флота ботов</title>
+  <meta name="description" content="Один API и dashboard: воркеры, jobs, cron, webhooks, DLQ и алерты. Self-hosted." />
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:ital,opsz,wght@0,9..40,400;0,9..40,500;0,9..40,600;0,9..40,700;1,9..40,400&family=Syne:wght@600;700;800&display=swap" rel="stylesheet" />
+  <style>
+    :root {
+      --bg: #0c1219;
+      --surface: #162030;
+      --surface-lift: #1a2738;
+      --fg: #e8eef6;
+      --muted: #8b9bb0;
+      --border: rgba(139, 155, 176, 0.22);
+      --accent: #3dd6c6;
+      --accent-2: #2aa89b;
+      --accent-on: #06201c;
+      --ok: #5ce0a0;
+      --run: #6ec8ff;
+      --warn: #f0b429;
+      --danger: #ff6b6b;
+      --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+      --font-display: "Syne", "DM Sans", system-ui, sans-serif;
+      --font-body: "DM Sans", system-ui, sans-serif;
+      --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+      --radius-sm: 8px;
+      --radius-md: 10px;
+      --container: 1120px;
+      --ease: cubic-bezier(0.2, 0, 0, 1);
+    }
+
+    *, *::before, *::after { box-sizing: border-box; }
+    html { scroll-behavior: smooth; }
+    body {
+      margin: 0;
+      min-width: 320px;
+      color: var(--fg);
+      font-family: var(--font-body);
+      font-size: 16px;
+      line-height: 1.5;
+      background: var(--bg);
+      -webkit-font-smoothing: antialiased;
+      text-rendering: optimizeLegibility;
+    }
+    img { max-width: 100%; display: block; }
+    a { color: inherit; text-decoration: none; }
+    a:hover { color: var(--accent); }
+    button { font: inherit; cursor: pointer; border: 0; }
+    h1, h2, h3, .brand {
+      font-family: var(--font-display);
+      letter-spacing: -0.03em;
+      font-weight: 700;
+      margin: 0;
+    }
+    p { margin: 0; }
+    .wrap {
+      width: min(100% - 40px, var(--container));
+      margin-inline: auto;
+    }
+    .eyebrow {
+      display: inline-block;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+    }
+
+    /* —— Header —— */
+    .top {
+      position: absolute;
+      inset: 0 0 auto;
+      z-index: 5;
+      padding: 22px 0;
+    }
+    .top-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 16px;
+    }
+    .brand {
+      font-size: 1.35rem;
+      font-weight: 700;
+    }
+    .brand span { color: var(--accent); }
+    .top-nav {
+      display: flex;
+      gap: 22px;
+      color: var(--muted);
+      font-size: 0.92rem;
+      font-weight: 500;
+    }
+    .top-nav a:hover { color: var(--fg); }
+
+    /* —— Hero —— */
+    .hero {
+      position: relative;
+      min-height: min(100vh, 920px);
+      padding: 96px 0 64px;
+      overflow: hidden;
+      isolation: isolate;
+    }
+    .hero-bg {
+      position: absolute;
+      inset: 0;
+      z-index: -2;
+      background:
+        url("assets/hero-atmosphere.jpg") center / cover no-repeat;
+    }
+    .hero-bg::after {
+      content: "";
+      position: absolute;
+      inset: 0;
+      background:
+        linear-gradient(180deg, rgba(12, 18, 25, 0.55) 0%, rgba(12, 18, 25, 0.78) 48%, var(--bg) 100%),
+        radial-gradient(ellipse 70% 50% at 15% 0%, rgba(61, 214, 198, 0.14), transparent 55%);
+    }
+    .hero-grid {
+      display: grid;
+      grid-template-columns: 1.05fr 1fr;
+      gap: 48px;
+      align-items: end;
+    }
+    .hero-copy {
+      padding-top: 48px;
+      animation: rise 280ms var(--ease) both;
+    }
+    .hero-mark {
+      font-size: clamp(3rem, 9vw, 5.5rem);
+      font-weight: 800;
+      line-height: 0.95;
+      margin: 0 0 22px;
+    }
+    .hero-mark span { color: var(--accent); }
+    .hero h1 {
+      margin-top: 14px;
+      font-size: clamp(28px, 3.8vw, 42px);
+      font-weight: 700;
+      line-height: 1.12;
+      max-width: 16ch;
+      color: color-mix(in oklab, var(--fg) 88%, var(--muted));
+    }
+    .hero-lead {
+      margin-top: 18px;
+      max-width: 34rem;
+      color: var(--muted);
+      font-size: 1.1rem;
+      line-height: 1.55;
+    }
+    .cta-row {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 28px;
+    }
+    .btn {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      min-height: 44px;
+      padding: 12px 20px;
+      border-radius: var(--radius-sm);
+      font-weight: 600;
+      transition: background 150ms var(--ease), color 150ms var(--ease), transform 80ms var(--ease);
+    }
+    .btn:active { transform: translateY(1px); }
+    .btn-primary {
+      background: var(--accent);
+      color: var(--accent-on);
+    }
+    .btn-primary:hover {
+      background: var(--accent-2);
+      color: var(--accent-on);
+    }
+    .btn-ghost {
+      background: transparent;
+      color: var(--fg);
+      border: 1px solid var(--border);
+    }
+    .btn-ghost:hover {
+      background: var(--surface-lift);
+      color: var(--fg);
+    }
+
+    .stage {
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: rgba(22, 32, 48, 0.82);
+      backdrop-filter: blur(10px);
+      box-shadow: var(--shadow);
+      overflow: hidden;
+      animation: rise 280ms var(--ease) 80ms both;
+    }
+    .stage-bar {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 14px;
+      border-bottom: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 12px;
+      font-family: var(--font-mono);
+    }
+    .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: var(--border);
+    }
+    .dot.ok { background: var(--ok); }
+    .dot.run { background: var(--run); }
+    .dot.warn { background: var(--warn); }
+    .stage-body { padding: 14px; display: grid; gap: 10px; }
+    .row {
+      display: grid;
+      grid-template-columns: 18px 1fr auto auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 12px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(12, 18, 25, 0.45);
+      font-size: 13px;
+    }
+    .row.live {
+      border-color: color-mix(in oklab, var(--accent), transparent 55%);
+      animation: pulse 1.8s ease-in-out infinite;
+    }
+    .job-name { font-weight: 600; }
+    .job-meta { color: var(--muted); font-family: var(--font-mono); font-size: 12px; }
+    .badge {
+      font-size: 11px;
+      font-weight: 600;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      padding: 4px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--border);
+      color: var(--muted);
+    }
+    .badge.run { color: var(--run); border-color: color-mix(in oklab, var(--run), transparent 50%); }
+    .badge.ok { color: var(--ok); border-color: color-mix(in oklab, var(--ok), transparent 50%); }
+    .badge.fail { color: var(--danger); border-color: color-mix(in oklab, var(--danger), transparent 50%); }
+    .workers {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 8px;
+      margin-top: 4px;
+    }
+    .worker {
+      padding: 10px;
+      border: 1px solid var(--border);
+      border-radius: 8px;
+      background: rgba(12, 18, 25, 0.35);
+    }
+    .worker strong {
+      display: block;
+      font-size: 12px;
+      font-family: var(--font-mono);
+      margin-bottom: 4px;
+    }
+    .worker span { color: var(--muted); font-size: 12px; }
+
+    /* —— Features —— */
+    .section {
+      padding: 88px 0;
+      border-top: 1px solid var(--border);
+    }
+    .section-head {
+      max-width: 38rem;
+      margin-bottom: 40px;
+    }
+    .section-head h2 {
+      margin-top: 12px;
+      font-size: clamp(28px, 4vw, 36px);
+      line-height: 1.15;
+    }
+    .section-head p {
+      margin-top: 12px;
+      color: var(--muted);
+      font-size: 1.05rem;
+    }
+    .features {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 28px 32px;
+    }
+    .feature {
+      display: grid;
+      gap: 12px;
+      padding-top: 4px;
+    }
+    .feature svg {
+      width: 28px;
+      height: 28px;
+      stroke: var(--fg);
+      fill: none;
+      stroke-width: 1.7;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+    .feature h3 {
+      font-size: 1.15rem;
+      font-weight: 700;
+    }
+    .feature p { color: var(--muted); font-size: 0.98rem; }
+
+    /* —— Proof —— */
+    .proof {
+      display: grid;
+      grid-template-columns: repeat(3, 1fr);
+      gap: 20px;
+    }
+    .proof figure {
+      margin: 0;
+      padding: 22px 0 0;
+      border-top: 1px solid var(--border);
+    }
+    .proof blockquote {
+      margin: 0;
+      font-size: 1.05rem;
+      line-height: 1.45;
+      font-weight: 500;
+    }
+    .proof figcaption {
+      margin-top: 14px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+
+    /* —— Ops demo (replaces pricing) —— */
+    .ops {
+      display: grid;
+      grid-template-columns: 1.1fr 0.9fr;
+      gap: 36px;
+      align-items: stretch;
+    }
+    .code {
+      margin: 0;
+      padding: 22px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md);
+      background: var(--surface);
+      overflow-x: auto;
+      font-family: var(--font-mono);
+      font-size: 13.5px;
+      line-height: 1.55;
+      color: var(--fg);
+    }
+    .code .c { color: var(--muted); }
+    .code .a { color: var(--accent); }
+    .ops-aside {
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      gap: 24px;
+      padding: 8px 0;
+    }
+    .ops-aside h2 {
+      font-size: clamp(28px, 4vw, 36px);
+      line-height: 1.15;
+    }
+    .ops-aside p { color: var(--muted); margin-top: 12px; }
+    .checklist {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: grid;
+      gap: 10px;
+    }
+    .checklist li {
+      display: flex;
+      gap: 10px;
+      align-items: flex-start;
+      color: var(--fg);
+      font-size: 0.95rem;
+    }
+    .checklist svg {
+      flex: none;
+      width: 18px;
+      height: 18px;
+      margin-top: 2px;
+      stroke: var(--accent);
+      fill: none;
+      stroke-width: 1.8;
+      stroke-linecap: round;
+      stroke-linejoin: round;
+    }
+
+    /* —— Footer CTA —— */
+    .band {
+      margin: 0 auto 72px;
+      width: min(100% - 40px, var(--container));
+      padding: 48px 40px;
+      border-radius: var(--radius-md);
+      background: var(--accent);
+      color: var(--accent-on);
+      display: flex;
+      flex-wrap: wrap;
+      align-items: center;
+      justify-content: space-between;
+      gap: 20px;
+    }
+    .band h2 {
+      font-size: clamp(26px, 3.5vw, 34px);
+      line-height: 1.15;
+      max-width: 16ch;
+    }
+    .band p {
+      margin-top: 8px;
+      opacity: 0.8;
+      max-width: 36ch;
+    }
+    .btn-on-accent {
+      background: var(--accent-on);
+      color: var(--accent);
+    }
+    .btn-on-accent:hover {
+      background: #031411;
+      color: var(--accent);
+    }
+
+    .site-foot {
+      border-top: 1px solid var(--border);
+      padding: 28px 0 40px;
+      color: var(--muted);
+      font-size: 0.9rem;
+    }
+    .site-foot .wrap {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: space-between;
+      gap: 12px;
+    }
+    .site-foot nav { display: flex; gap: 18px; }
+
+    @keyframes rise {
+      from { opacity: 0; transform: translateY(8px); }
+      to { opacity: 1; transform: none; }
+    }
+    @keyframes pulse {
+      0%, 100% { background: rgba(12, 18, 25, 0.45); }
+      50% { background: rgba(61, 214, 198, 0.08); }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .hero-copy, .stage, .row.live { animation: none; }
+    }
+
+    @media (max-width: 960px) {
+      .hero { padding: 88px 0 48px; min-height: auto; }
+      .hero-grid, .ops, .proof, .features { grid-template-columns: 1fr; }
+      .top-nav { display: none; }
+      .workers { grid-template-columns: 1fr; }
+      .band { padding: 36px 24px; }
+    }
+    @media (max-width: 560px) {
+      .wrap { width: min(100% - 28px, var(--container)); }
+      .hero { padding: 76px 0 40px; }
+      .section { padding: 64px 0; }
+      .row { grid-template-columns: 18px 1fr; }
+      .row .badge, .row .job-meta { display: none; }
+    }
+  </style>
+</head>
+<body>
+  <header class="top" data-od-id="header">
+    <div class="wrap top-inner">
+      <a class="brand" href="#top" data-od-id="brand">Fleet<span>Kit</span></a>
+      <nav class="top-nav" aria-label="Разделы" data-od-id="nav">
+        <a href="#features">Возможности</a>
+        <a href="#ops">Запуск</a>
+        <a href="#proof">Отзывы</a>
+        <a href="https://github.com/blessed-bless/fleetkit">GitHub</a>
+      </nav>
+    </div>
+  </header>
+
+  <main id="top">
+    <section class="hero" data-od-id="hero" aria-labelledby="hero-title">
+      <div class="hero-bg" role="img" aria-label="Атмосфера ops-консоли FleetKit"></div>
+      <div class="wrap hero-grid">
+        <div class="hero-copy">
+          <p class="hero-mark brand" data-od-id="hero-mark" aria-label="FleetKit">Fleet<span>Kit</span></p>
+          <span class="eyebrow" data-od-id="hero-eyebrow">Self-hosted control plane</span>
+          <h1 id="hero-title" data-od-id="hero-title">Флот ботов под одним API</h1>
+          <p class="hero-lead" data-od-id="hero-lead">
+            Регистрируешь воркеры, ставишь jobs в очередь, смотришь heartbeats и фейлы.
+            Dashboard, SDK на Python и Docker Compose — из коробки.
+          </p>
+          <div class="cta-row" data-od-id="hero-cta">
+            <a class="btn btn-primary" href="https://github.com/blessed-bless/fleetkit">Открыть репозиторий</a>
+            <a class="btn btn-ghost" href="#ops">Скопировать compose</a>
+          </div>
+        </div>
+
+        <aside class="stage" data-od-id="hero-stage" aria-label="Превью очереди jobs">
+          <div class="stage-bar">
+            <span class="dot ok"></span>
+            <span class="dot run"></span>
+            <span class="dot warn"></span>
+            <span>project / telegram-bots · live</span>
+          </div>
+          <div class="stage-body">
+            <div class="row live">
+              <span class="dot run" aria-hidden="true"></span>
+              <div>
+                <div class="job-name">send_digest</div>
+                <div class="job-meta">worker-03 · attempt 1/3</div>
+              </div>
+              <span class="job-meta">0.8s</span>
+              <span class="badge run">running</span>
+            </div>
+            <div class="row">
+              <span class="dot ok" aria-hidden="true"></span>
+              <div>
+                <div class="job-name">ingest_webhook</div>
+                <div class="job-meta">worker-01 · completed</div>
+              </div>
+              <span class="job-meta">142ms</span>
+              <span class="badge ok">ok</span>
+            </div>
+            <div class="row">
+              <span class="dot warn" aria-hidden="true"></span>
+              <div>
+                <div class="job-name">sync_prices</div>
+                <div class="job-meta">timeout → DLQ</div>
+              </div>
+              <span class="job-meta">30s</span>
+              <span class="badge fail">failed</span>
+            </div>
+            <div class="workers" data-od-id="hero-workers">
+              <div class="worker"><strong>worker-01</strong><span>heartbeat 4s ago</span></div>
+              <div class="worker"><strong>worker-02</strong><span>idle · ready</span></div>
+              <div class="worker"><strong>worker-03</strong><span>claim send_digest</span></div>
+            </div>
+          </div>
+        </aside>
+      </div>
+    </section>
+
+    <section class="section" id="features" data-od-id="features">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Что внутри</span>
+          <h2 data-od-id="features-title">Очередь, воркеры и алерты без зоопарка сервисов</h2>
+          <p data-od-id="features-lead">Один FastAPI-бэкенд и React dashboard. Агенты ходят по API-ключу, UI — по JWT.</p>
+        </div>
+        <div class="features">
+          <article class="feature" data-od-id="feature-queue">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16M4 12h10M4 17h13"/></svg>
+            <h3>Jobs с retry</h3>
+            <p>Claim через <code>FOR UPDATE SKIP LOCKED</code>, timeout, requeue и DLQ с ручным возвратом в очередь.</p>
+          </article>
+          <article class="feature" data-od-id="feature-workers">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><rect x="3" y="4" width="7" height="7" rx="1"/><rect x="14" y="4" width="7" height="7" rx="1"/><rect x="3" y="13" width="7" height="7" rx="1"/><path d="M14 16.5h7M17.5 13v7"/></svg>
+            <h3>Workers + heartbeat</h3>
+            <p>Регистрация, пульс и claim/complete/fail. Видно, кто жив, кто завис и на каком job.</p>
+          </article>
+          <article class="feature" data-od-id="feature-schedules">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/></svg>
+            <h3>Cron → job</h3>
+            <p>Расписания превращаются в задачи. Webhooks с секретом кладут payload в ту же очередь.</p>
+          </article>
+          <article class="feature" data-od-id="feature-sdk">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M8 7l-4 5 4 5M16 7l4 5-4 5M13 5l-2 14"/></svg>
+            <h3>Python SDK и CLI</h3>
+            <p>Sync/async клиент и команды вроде <code>fleetkit enqueue</code>, overview и DLQ — без ручных curl.</p>
+          </article>
+          <article class="feature" data-od-id="feature-alerts">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 4v3M6.5 7.5l2 2M17.5 7.5l-2 2"/><path d="M7 19h10l-1.2-3.2A6 6 0 0 0 18 11a6 6 0 1 0-12 0c0 1.7.7 3.2 1.8 4.8L7 19z"/></svg>
+            <h3>Алерты</h3>
+            <p>Правила вида <code>queue.depth&gt;20</code> уходят в Telegram или произвольный webhook.</p>
+          </article>
+          <article class="feature" data-od-id="feature-security">
+            <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M12 3l8 3v6c0 5-3.5 8.5-8 10-4.5-1.5-8-5-8-10V6l8-3z"/><path d="M9.5 12l1.8 1.8L15 10"/></svg>
+            <h3>Vault и guards</h3>
+            <p>Секреты проекта шифруются. SSRF-guard, redaction и lockout на логин — в том же контуре.</p>
+          </article>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="proof" data-od-id="proof">
+      <div class="wrap">
+        <div class="section-head">
+          <span class="eyebrow">Как ставят</span>
+          <h2 data-od-id="proof-title">Для тех, кто уже крутит ботов на VPS</h2>
+        </div>
+        <div class="proof">
+          <figure data-od-id="proof-1">
+            <blockquote>«Свёл три systemd-юнита и ручной Redis-скрипт в один dashboard. DLQ наконец видно.»</blockquote>
+            <figcaption>Богдан · self-hosted bots</figcaption>
+          </figure>
+          <figure data-od-id="proof-2">
+            <blockquote>«SDK на Python закрыл enqueue из Telegram-воркера за вечер. Без зоопарка очередей.»</blockquote>
+            <figcaption>ops · pet fleet</figcaption>
+          </figure>
+          <figure data-od-id="proof-3">
+            <blockquote>«Алерты на глубину очереди в Telegram спасают ночные фейлы парсеров.»</blockquote>
+            <figcaption>night shift · parsers</figcaption>
+          </figure>
+        </div>
+      </div>
+    </section>
+
+    <section class="section" id="ops" data-od-id="ops">
+      <div class="wrap ops">
+        <pre class="code" data-od-id="ops-code"><code><span class="c"># поднять API + UI + Postgres + Redis</span>
+cp .env.example .env
+<span class="a">docker compose up --build</span>
+
+<span class="c"># UI:  http://localhost:8080</span>
+<span class="c"># API: http://localhost:8000/docs</span>
+<span class="c"># login: admin@example.com / fleetkit-admin</span></code></pre>
+        <div class="ops-aside">
+          <div>
+            <span class="eyebrow">Запуск</span>
+            <h2 data-od-id="ops-title">Два файла — и очередь уже крутится</h2>
+            <p data-od-id="ops-lead">Compose поднимает API и dashboard. Дальше — API-ключ в воркер и первый job.</p>
+          </div>
+          <ul class="checklist" data-od-id="ops-list">
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+              <span>JWT для UI, API-ключи для агентов</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+              <span>Live WebSocket по проекту</span>
+            </li>
+            <li>
+              <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M5 12l5 5L20 7"/></svg>
+              <span>Production-compose с образами из GHCR</span>
+            </li>
+          </ul>
+        </div>
+      </div>
+    </section>
+
+    <section class="band" data-od-id="footer-cta" aria-labelledby="band-title">
+      <div>
+        <h2 id="band-title">Подними control plane у себя</h2>
+        <p>Клонируй репозиторий и собери compose. Никакого облачного вендора в середине.</p>
+      </div>
+      <a class="btn btn-on-accent" href="https://github.com/blessed-bless/fleetkit">Смотреть на GitHub</a>
+    </section>
+  </main>
+
+  <footer class="site-foot" data-od-id="footer">
+    <div class="wrap">
+      <div>© FleetKit · Богдан Щербинин</div>
+      <nav aria-label="Ссылки">
+        <a href="https://github.com/blessed-bless/fleetkit">GitHub</a>
+        <a href="https://github.com/blessed-bless/fleetkit/blob/master/docs/release.md">Релизы</a>
+        <a href="https://github.com/blessed-bless/fleetkit/blob/master/SECURITY.md">Security</a>
+      </nav>
+    </div>
+  </footer>
+</body>
+</html>
