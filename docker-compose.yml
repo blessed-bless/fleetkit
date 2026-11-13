@@ -34,6 +34,7 @@ services:
     env_file:
       - .env.example
     environment:
+      FLEETKIT_ENV: development
       FLEETKIT_DATABASE_URL: postgresql+asyncpg://fleetkit:fleetkit@postgres:5432/fleetkit
       FLEETKIT_REDIS_URL: redis://redis:6379/0
       FLEETKIT_CORS_ORIGINS: http://localhost:5173,http://localhost:3000,http://localhost:8080
@@ -45,6 +46,12 @@ services:
         condition: service_healthy
       redis:
         condition: service_healthy
+    healthcheck:
+      test: ["CMD", "python", "-c", "import urllib.request; urllib.request.urlopen('http://127.0.0.1:8000/healthz')"]
+      interval: 10s
+      timeout: 5s
+      retries: 6
+      start_period: 20s
 
   worker:
     build:
@@ -54,6 +61,7 @@ services:
     env_file:
       - .env.example
     environment:
+      FLEETKIT_ENV: development
       FLEETKIT_DATABASE_URL: postgresql+asyncpg://fleetkit:fleetkit@postgres:5432/fleetkit
       FLEETKIT_REDIS_URL: redis://redis:6379/0
       FLEETKIT_SECRET_KEY: docker-dev-secret-change-in-production
@@ -63,16 +71,24 @@ services:
       redis:
         condition: service_healthy
       api:
-        condition: service_started
+        condition: service_healthy
 
   web:
     build:
       context: ./frontend
       dockerfile: Dockerfile
+      args:
+        VITE_API_URL: ""
     ports:
       - "8080:80"
     depends_on:
-      - api
+      api:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://127.0.0.1/healthz"]
+      interval: 10s
+      timeout: 3s
+      retries: 6
 
 volumes:
   fleetkit_pg:

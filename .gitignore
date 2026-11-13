@@ -23,6 +23,7 @@ frontend/dist/
 .env.*
 !.env.example
 !.env.docker.example
+!.env.production.example
 *.pem
 *.key
 
