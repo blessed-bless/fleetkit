@@ -30,7 +30,8 @@ async def http_fetch(payload: dict[str, Any]) -> dict[str, Any]:
     from fleetkit_api.security_suite.headers import sanitize_header_map
     from fleetkit_api.security_suite.ssrf import assert_safe_url
 
-    url = assert_safe_url(str(payload["url"]), allow_private=bool(payload.get("allow_private")))
+    # allow_private from payload is ignored — clients must not open SSRF.
+    url = assert_safe_url(str(payload["url"]))
     method = payload.get("method", "GET").upper()
     if method not in {"GET", "POST", "PUT", "PATCH", "DELETE", "HEAD"}:
         raise ValueError(f"method not allowed: {method}")
@@ -53,7 +54,7 @@ async def http_fetch(payload: dict[str, Any]) -> dict[str, Any]:
 async def http_json(payload: dict[str, Any]) -> dict[str, Any]:
     from fleetkit_api.security_suite.ssrf import assert_safe_url
 
-    url = assert_safe_url(str(payload["url"]), allow_private=bool(payload.get("allow_private")))
+    url = assert_safe_url(str(payload["url"]))
     async with httpx.AsyncClient(timeout=20, follow_redirects=False) as client:
         resp = await client.get(url)
         resp.raise_for_status()

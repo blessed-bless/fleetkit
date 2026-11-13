@@ -28,7 +28,8 @@ export function useLiveProject(projectId: string | null, onEvent?: (ev: LiveEven
 
     function connect() {
       if (closed) return;
-      sock = new WebSocket(`${base}/api/v1/ws/projects/${projectId}?token=${encodeURIComponent(token!)}`);
+      // JWT via Sec-WebSocket-Protocol — never put the token in the query string (logs/Referer).
+      sock = new WebSocket(`${base}/api/v1/ws/projects/${projectId}`, ["fleetkit-jwt", token!]);
       sock.onopen = () => {
         attempt = 0;
         setConnected(true);

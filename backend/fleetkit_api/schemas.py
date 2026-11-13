@@ -185,7 +185,8 @@ class WebhookOut(BaseModel):
     app_id: str
     name: str
     path_token: str
-    secret: str
+    # Raw secret only on create; list/get leave this null.
+    secret: str | None = None
     target_job_name: str
     is_enabled: bool
     created_at: datetime

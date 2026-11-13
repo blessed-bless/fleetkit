@@ -12,15 +12,19 @@ from fleetkit_worker.parsers import as_float, as_int, require_str, require_url
 
 @job("net.dns")
 async def net_dns(payload: dict[str, Any]) -> dict[str, Any]:
+    from fleetkit_api.security_suite.ssrf import resolve_and_check
+
     host = require_str(payload, "host")
-    infos = await asyncio.to_thread(socket.getaddrinfo, host, None)
-    addrs = sorted({item[4][0] for item in infos})
+    addrs = resolve_and_check(host)
     return {"host": host, "addresses": addrs}
 
 
 @job("net.tcp_check")
 async def net_tcp_check(payload: dict[str, Any]) -> dict[str, Any]:
+    from fleetkit_api.security_suite.ssrf import resolve_and_check
+
     host = require_str(payload, "host")
+    resolve_and_check(host)
     port = as_int(payload, "port", 80, min_v=1, max_v=65535)
     timeout = as_float(payload, "timeout", 3.0, min_v=0.2, max_v=30.0)
 
@@ -39,7 +43,7 @@ async def net_tcp_check(payload: dict[str, Any]) -> dict[str, Any]:
 async def net_http_status(payload: dict[str, Any]) -> dict[str, Any]:
     from fleetkit_api.security_suite.ssrf import assert_safe_url
 
-    url = assert_safe_url(require_url(payload), allow_private=bool(payload.get("allow_private")))
+    url = assert_safe_url(require_url(payload))
     timeout = as_float(payload, "timeout", 10.0, min_v=1.0, max_v=60.0)
     async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         resp = await client.head(url)
@@ -55,6 +59,8 @@ async def net_http_status(payload: dict[str, Any]) -> dict[str, Any]:
 
 @job("net.multi_http")
 async def net_multi_http(payload: dict[str, Any]) -> dict[str, Any]:
+    from fleetkit_api.security_suite.ssrf import SSRFBlocked, assert_safe_url
+
     urls = payload.get("urls") or []
     if not isinstance(urls, list) or not urls:
         raise ValueError("payload.urls must be a non-empty list")
@@ -62,11 +68,14 @@ async def net_multi_http(payload: dict[str, Any]) -> dict[str, Any]:
         raise ValueError("max 20 urls")
     timeout = as_float(payload, "timeout", 10.0, min_v=1.0, max_v=30.0)
     results = []
-    async with httpx.AsyncClient(timeout=timeout) as client:
+    async with httpx.AsyncClient(timeout=timeout, follow_redirects=False) as client:
         for url in urls:
             try:
-                resp = await client.get(str(url))
+                safe = assert_safe_url(str(url))
+                resp = await client.get(safe)
                 results.append({"url": url, "status_code": resp.status_code, "ok": True})
+            except SSRFBlocked as exc:
+                results.append({"url": url, "ok": False, "error": f"ssrf blocked: {exc}"})
             except Exception as exc:  # noqa: BLE001
                 results.append({"url": url, "ok": False, "error": str(exc)})
     return {"results": results, "ok_count": sum(1 for r in results if r.get("ok"))}
