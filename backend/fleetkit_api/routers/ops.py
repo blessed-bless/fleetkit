@@ -8,7 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.crypto_box import encrypt_text
 from fleetkit_api.db import get_db
-from fleetkit_api.deps import get_current_user, get_project_for_user
+from fleetkit_api.deps import get_current_user, get_project_for_user, require_project_admin
 from fleetkit_api.models import App, Project, User
 from fleetkit_api.models_ext import (
     AppEnvVar,
@@ -30,6 +30,7 @@ from fleetkit_api.schemas_ext import (
     InviteCreate,
     InviteOut,
     MemberOut,
+    MemberRoleUpdate,
     RetentionOut,
     RetentionUpdate,
     SearchOut,
@@ -37,6 +38,8 @@ from fleetkit_api.schemas_ext import (
 from fleetkit_api.services.healthchecks import run_health_check
 from fleetkit_api.services.retention import apply_retention, ensure_default_policies
 from fleetkit_api.services.search import search_project
+
+ALLOWED_ROLES = {"viewer", "operator", "admin"}
 
 router = APIRouter(tags=["ops"])
 
@@ -118,16 +121,22 @@ async def flags_upsert(
     project: Project = Depends(get_project_for_user),
     db: AsyncSession = Depends(get_db),
 ) -> FeatureFlag:
+    from fleetkit_api.services.validators import validate_flag_key
+
+    try:
+        key = validate_flag_key(body.key)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
     result = await db.execute(
         select(FeatureFlag).where(
-            FeatureFlag.project_id == project.id, FeatureFlag.key == body.key
+            FeatureFlag.project_id == project.id, FeatureFlag.key == key
         )
     )
     row = result.scalar_one_or_none()
     if row is None:
         row = FeatureFlag(
             project_id=project.id,
-            key=body.key,
+            key=key,
             enabled=body.enabled,
             payload=body.payload,
         )
@@ -265,29 +274,100 @@ async def env_upsert(
 async def members_list(
     project: Project = Depends(get_project_for_user),
     db: AsyncSession = Depends(get_db),
-) -> list[ProjectMember]:
+) -> list[MemberOut]:
     result = await db.execute(
         select(ProjectMember).where(ProjectMember.project_id == project.id)
     )
-    return list(result.scalars().all())
+    rows = list(result.scalars().all())
+    out: list[MemberOut] = []
+    for row in rows:
+        user = await db.get(User, row.user_id)
+        out.append(
+            MemberOut(
+                id=row.id,
+                user_id=row.user_id,
+                email=user.email if user else None,
+                role=row.role,
+                created_at=row.created_at,
+            )
+        )
+    return out
+
+
+@router.patch("/projects/{project_id}/members/{member_id}", response_model=MemberOut)
+async def members_update_role(
+    member_id: str,
+    body: MemberRoleUpdate,
+    project: Project = Depends(require_project_admin),
+    db: AsyncSession = Depends(get_db),
+) -> MemberOut:
+    if body.role not in ALLOWED_ROLES and body.role != "owner":
+        raise HTTPException(status_code=400, detail="role must be viewer|operator|admin")
+    if body.role == "owner":
+        raise HTTPException(status_code=400, detail="cannot promote to owner via API")
+    row = await db.get(ProjectMember, member_id)
+    if row is None or row.project_id != project.id:
+        raise HTTPException(status_code=404, detail="Member не найден")
+    if row.role == "owner":
+        raise HTTPException(status_code=400, detail="owner role is immutable")
+    row.role = body.role
+    await db.commit()
+    await db.refresh(row)
+    user = await db.get(User, row.user_id)
+    return MemberOut(
+        id=row.id,
+        user_id=row.user_id,
+        email=user.email if user else None,
+        role=row.role,
+        created_at=row.created_at,
+    )
+
+
+@router.delete("/projects/{project_id}/members/{member_id}", status_code=204)
+async def members_remove(
+    member_id: str,
+    project: Project = Depends(require_project_admin),
+    db: AsyncSession = Depends(get_db),
+) -> None:
+    row = await db.get(ProjectMember, member_id)
+    if row is None or row.project_id != project.id:
+        raise HTTPException(status_code=404, detail="Member не найден")
+    if row.role == "owner" or row.user_id == project.owner_id:
+        raise HTTPException(status_code=400, detail="cannot remove project owner")
+    await db.delete(row)
+    await db.commit()
 
 
 @router.post("/projects/{project_id}/invites", response_model=InviteOut, status_code=201)
 async def invite_create(
     body: InviteCreate,
-    project: Project = Depends(get_project_for_user),
+    project: Project = Depends(require_project_admin),
     db: AsyncSession = Depends(get_db),
 ) -> InviteToken:
+    role = body.role if body.role in ALLOWED_ROLES else "viewer"
     row = InviteToken(
         project_id=project.id,
         email=body.email.lower(),
-        role=body.role,
+        role=role,
         expires_at=datetime.now(UTC) + timedelta(days=7),
     )
     db.add(row)
     await db.commit()
     await db.refresh(row)
     return row
+
+
+@router.get("/projects/{project_id}/invites", response_model=list[InviteOut])
+async def invites_list(
+    project: Project = Depends(require_project_admin),
+    db: AsyncSession = Depends(get_db),
+) -> list[InviteToken]:
+    result = await db.execute(
+        select(InviteToken)
+        .where(InviteToken.project_id == project.id, InviteToken.accepted.is_(False))
+        .order_by(InviteToken.created_at.desc())
+    )
+    return list(result.scalars().all())
 
 
 @router.get("/projects/{project_id}/search", response_model=SearchOut)
@@ -312,3 +392,52 @@ async def my_invites(
         )
     )
     return list(result.scalars().all())
+
+
+@router.post("/invites/{token}/accept", response_model=MemberOut)
+async def invite_accept(
+    token: str,
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> MemberOut:
+    row = (
+        await db.execute(select(InviteToken).where(InviteToken.token == token))
+    ).scalar_one_or_none()
+    if row is None or row.accepted:
+        raise HTTPException(status_code=404, detail="Invite не найден")
+    if row.email.lower() != user.email.lower():
+        raise HTTPException(status_code=403, detail="Invite выписан на другой email")
+    if row.expires_at and row.expires_at < datetime.now(UTC):
+        raise HTTPException(status_code=410, detail="Invite истёк")
+    existing = await db.scalar(
+        select(ProjectMember).where(
+            ProjectMember.project_id == row.project_id,
+            ProjectMember.user_id == user.id,
+        )
+    )
+    if existing:
+        row.accepted = True
+        await db.commit()
+        return MemberOut(
+            id=existing.id,
+            user_id=existing.user_id,
+            email=user.email,
+            role=existing.role,
+            created_at=existing.created_at,
+        )
+    member = ProjectMember(
+        project_id=row.project_id,
+        user_id=user.id,
+        role=row.role if row.role in ALLOWED_ROLES else "viewer",
+    )
+    db.add(member)
+    row.accepted = True
+    await db.commit()
+    await db.refresh(member)
+    return MemberOut(
+        id=member.id,
+        user_id=member.user_id,
+        email=user.email,
+        role=member.role,
+        created_at=member.created_at,
+    )

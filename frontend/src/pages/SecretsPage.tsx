@@ -1,18 +1,12 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
 
-type Project = { id: string; slug: string; name: string };
-
-export function SecretsPage({
-  projects,
-  projectId,
-  onProjectChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onProjectChange: (id: string) => void;
-}) {
+export function SecretsPage() {
+  const { t } = useI18n();
+  const { projectId } = useProject();
   const [items, setItems] = useState<any[]>([]);
   const [name, setName] = useState("BOT_TOKEN");
   const [value, setValue] = useState("");
@@ -31,44 +25,48 @@ export function SecretsPage({
     e.preventDefault();
     await api.upsertSecret(projectId, { name, value, description: "" });
     setValue("");
-    setMsg("Секрет сохранён");
+    setMsg(t("secrets.saved"));
     await reload(projectId);
   }
 
   async function reveal(secretName: string) {
+    if (!projectId) return;
     const res = await api.revealSecret(projectId, secretName);
     setRevealed(`${res.name}=${res.value}`);
+  }
+
+  async function remove(secretName: string) {
+    if (!projectId) return;
+    try {
+      await api.deleteSecret(projectId, secretName);
+      setMsg(t("secrets.deleted"));
+      if (revealed.startsWith(`${secretName}=`)) setRevealed("");
+      await reload(projectId);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("secrets.deleteFail"));
+    }
   }
 
   return (
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Секреты</h1>
-          <p className="lead">Токены ботов и ключи для воркеров. Reveal — только по клику.</p>
+          <h1>{t("secrets.title")}</h1>
+          <p className="lead">{t("secrets.lead")}</p>
         </div>
       </div>
-      <div className="field" style={{ maxWidth: 280 }}>
-        <label>Проект</label>
-        <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ProjectPicker />
       <form className="panel row" onSubmit={save}>
         <div className="field">
-          <label>Имя</label>
+          <label>{t("secrets.name")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="field">
-          <label>Значение</label>
+          <label>{t("secrets.value")}</label>
           <input value={value} onChange={(e) => setValue(e.target.value)} required />
         </div>
         <button className="btn" type="submit">
-          Сохранить секрет
+          {t("secrets.save")}
         </button>
       </form>
       {msg ? <p className="muted">{msg}</p> : null}
@@ -77,9 +75,9 @@ export function SecretsPage({
         <table className="table">
           <thead>
             <tr>
-              <th>Имя</th>
-              <th>Описание</th>
-              <th></th>
+              <th>{t("secrets.name")}</th>
+              <th>{t("secrets.description")}</th>
+              <th />
             </tr>
           </thead>
           <tbody>
@@ -87,9 +85,12 @@ export function SecretsPage({
               <tr key={item.id}>
                 <td>{item.name}</td>
                 <td>{item.description || "—"}</td>
-                <td>
+                <td className="row" style={{ gap: 6 }}>
                   <button className="btn ghost" type="button" onClick={() => reveal(item.name)}>
-                    Показать
+                    {t("secrets.reveal")}
+                  </button>
+                  <button className="btn ghost" type="button" onClick={() => remove(item.name)}>
+                    {t("secrets.delete")}
                   </button>
                 </td>
               </tr>

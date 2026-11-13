@@ -2,16 +2,56 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 
-from sqlalchemy import select
+from sqlalchemy import func, select
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from fleetkit_api.models import App, Job, JobStatus, Worker, WorkerStatus
+from fleetkit_api.models_ext import FeatureFlag
 from fleetkit_api.services.cache import overview_cache
 from fleetkit_api.services.events import emit_event
+from fleetkit_api.services.policy_engine import (
+    PolicyContext,
+    evaluate_claim_policy,
+    evaluate_enqueue_policy,
+    suggest_queue,
+)
+
+
+class PolicyDenied(RuntimeError):
+    """Enqueue/claim blocked by policy_engine."""
+
+    def __init__(self, reason: str) -> None:
+        self.reason = reason
+        super().__init__(reason)
 
 
 def _bust_overview() -> None:
     overview_cache.invalidate_prefix("overview")
+
+
+async def _feature_flags(db: AsyncSession, project_id: str) -> dict[str, bool]:
+    rows = (
+        await db.execute(select(FeatureFlag).where(FeatureFlag.project_id == project_id))
+    ).scalars().all()
+    return {row.key: bool(row.enabled) for row in rows}
+
+
+async def _queue_depth(db: AsyncSession, app_id: str) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(Job)
+        .where(Job.app_id == app_id, Job.status == JobStatus.queued)
+    )
+    return int(result.scalar_one() or 0)
+
+
+async def _workers_online(db: AsyncSession, app_id: str) -> int:
+    result = await db.execute(
+        select(func.count())
+        .select_from(Worker)
+        .where(Worker.app_id == app_id, Worker.status == WorkerStatus.online)
+    )
+    return int(result.scalar_one() or 0)
 
 
 async def enqueue_job(
@@ -21,10 +61,12 @@ async def enqueue_job(
     name: str,
     payload: dict | None = None,
     queue: str = "default",
+    tags: list[str] | None = None,
     max_attempts: int = 3,
     timeout_seconds: int = 300,
     scheduled_for: datetime | None = None,
     skip_payload_guard: bool = False,
+    skip_policy: bool = False,
 ) -> Job:
     if not skip_payload_guard:
         from fleetkit_api.security_suite.payload_guard import assert_payload_safe
@@ -32,11 +74,34 @@ async def enqueue_job(
         # Demo/fail jobs are allowed to carry attack strings for security drills.
         strict = not name.startswith(("demo.", "security.drill"))
         assert_payload_safe(payload, strict=strict)
+
+    resolved_queue = queue or suggest_queue(name)
+    clean_tags = [t.strip() for t in (tags or []) if t and t.strip()][:32]
+
+    if not skip_policy:
+        flags = await _feature_flags(db, app.project_id)
+        depth = await _queue_depth(db, app.id)
+        online = await _workers_online(db, app.id)
+        decision = evaluate_enqueue_policy(
+            PolicyContext(
+                project_id=app.project_id,
+                app_kind=app.kind,
+                queue_depth=depth,
+                workers_online=online,
+                feature_flags=flags,
+            ),
+            job_name=name,
+            queue=resolved_queue,
+        )
+        if not decision.allow:
+            raise PolicyDenied(decision.reason)
+
     job = Job(
         app_id=app.id,
         name=name,
-        queue=queue,
+        queue=resolved_queue,
         payload=payload or {},
+        tags=clean_tags,
         max_attempts=max_attempts,
         timeout_seconds=timeout_seconds,
         scheduled_for=scheduled_for,
@@ -71,7 +136,31 @@ async def claim_next_job(
     worker: Worker,
     queues: list[str] | None = None,
 ) -> Job | None:
+    if worker.status == WorkerStatus.draining:
+        return None
+
+    flags = await _feature_flags(db, app.project_id)
+    app_requires = {
+        str(k): str(v)
+        for k, v in (app.config or {}).items()
+        if k in {"requires", "require_capability"}
+    }
+    if "require_capability" in app_requires and "requires" not in app_requires:
+        app_requires["requires"] = app_requires["require_capability"]
+    claim_decision = evaluate_claim_policy(
+        PolicyContext(
+            project_id=app.project_id,
+            app_kind=app.kind,
+            feature_flags=flags,
+            labels=app_requires,
+        ),
+        worker_labels={str(k): str(v) for k, v in (worker.labels or {}).items()},
+    )
+    if not claim_decision.allow:
+        return None
+
     now = datetime.now(UTC)
+    # Pull a window so we can skip dependency-blocked jobs and prefer priority.
     stmt = (
         select(Job)
         .where(
@@ -80,7 +169,7 @@ async def claim_next_job(
             (Job.scheduled_for.is_(None)) | (Job.scheduled_for <= now),
         )
         .order_by(Job.created_at.asc())
-        .limit(1)
+        .limit(25)
     )
     # SKIP LOCKED is Postgres-only; SQLite smoke mode uses plain SELECT.
     settings_url = str(getattr(db.bind, "url", ""))
@@ -90,9 +179,36 @@ async def claim_next_job(
         stmt = stmt.where(Job.queue.in_(queues))
 
     result = await db.execute(stmt)
-    job = result.scalar_one_or_none()
-    if job is None:
+    candidates = list(result.scalars().all())
+    if not candidates:
         return None
+
+    from fleetkit_api.models_ext import JobPriorityOverride
+    from fleetkit_api.services.job_graph import blocked_job_ids
+
+    job_ids = [j.id for j in candidates]
+    blocked = await blocked_job_ids(db, job_ids)
+    eligible = [j for j in candidates if j.id not in blocked]
+    if not eligible:
+        return None
+
+    from fleetkit_api.services.policy_engine import score_job_urgency
+
+    pri_rows = (
+        await db.execute(
+            select(JobPriorityOverride).where(JobPriorityOverride.job_id.in_([j.id for j in eligible]))
+        )
+    ).scalars().all()
+    pri_map = {row.job_id: int(row.priority) for row in pri_rows}
+
+    def _rank(j: Job) -> tuple[int, float, datetime]:
+        created = j.created_at or now
+        age = max(0.0, (now - created).total_seconds())
+        urgency = score_job_urgency(attempt=j.attempt, queue=j.queue or "default", age_seconds=age)
+        return (-pri_map.get(j.id, 50), -urgency, created)
+
+    eligible.sort(key=_rank)
+    job = eligible[0]
 
     job.status = JobStatus.running
     job.worker_id = worker.id
@@ -107,7 +223,11 @@ async def claim_next_job(
         job_id=job.id,
         kind="job.started",
         message=f"Worker {worker.name} claimed job {job.name}",
-        data={"worker_id": worker.id, "attempt": job.attempt},
+        data={
+            "worker_id": worker.id,
+            "attempt": job.attempt,
+            "priority": pri_map.get(job.id, 50),
+        },
     )
     await db.flush()
     _bust_overview()
@@ -169,6 +289,96 @@ async def cancel_jobs_bulk(db: AsyncSession, jobs: list[Job]) -> list[Job]:
     return out
 
 
+async def retry_job(db: AsyncSession, job: Job) -> Job:
+    """Re-queue a terminal job (failed/cancelled/timed_out) without cloning."""
+    if job.status not in (JobStatus.failed, JobStatus.cancelled, JobStatus.timed_out):
+        raise PolicyDenied(f"cannot retry status={job.status.value}")
+    job.status = JobStatus.queued
+    job.worker_id = None
+    job.error = None
+    job.result = None
+    job.started_at = None
+    job.finished_at = None
+    job.scheduled_for = None
+    app = await db.get(App, job.app_id)
+    if app:
+        await emit_event(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            job_id=job.id,
+            kind="job.retried",
+            message=f"Job {job.name} re-queued manually",
+        )
+        from fleetkit_api.services.live import live_hub
+
+        await live_hub.publish(
+            app.project_id,
+            "job.retried",
+            {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
+    await db.flush()
+    _bust_overview()
+    return job
+
+
+async def clone_job(
+    db: AsyncSession,
+    job: Job,
+    *,
+    name: str | None = None,
+    payload: dict | None = None,
+    copy_tags: bool = True,
+) -> Job:
+    """Enqueue a fresh copy of an existing job (new id, attempt=0)."""
+    app = await db.get(App, job.app_id)
+    if app is None:
+        raise PolicyDenied("app missing for clone")
+    tags = list(job.tags or []) if copy_tags else []
+    cloned = await enqueue_job(
+        db,
+        app=app,
+        name=name or job.name,
+        payload=payload if payload is not None else dict(job.payload or {}),
+        queue=job.queue or "default",
+        tags=tags,
+        max_attempts=job.max_attempts,
+        timeout_seconds=job.timeout_seconds,
+    )
+    await emit_event(
+        db,
+        project_id=app.project_id,
+        app_id=app.id,
+        job_id=cloned.id,
+        kind="job.cloned",
+        message=f"Cloned from {job.id}",
+        data={"source_job_id": job.id},
+    )
+    return cloned
+
+
+async def set_job_priority(db: AsyncSession, job_id: str, priority: int):
+    from fleetkit_api.models_ext import JobPriorityOverride
+    from fleetkit_api.services.validators import validate_priority
+
+    priority = validate_priority(priority)
+    row = await db.get(JobPriorityOverride, job_id)
+    if row is None:
+        row = JobPriorityOverride(job_id=job_id, priority=priority)
+        db.add(row)
+    else:
+        row.priority = priority
+    await db.flush()
+    return row
+
+
+async def get_job_priority(db: AsyncSession, job_id: str) -> int:
+    from fleetkit_api.models_ext import JobPriorityOverride
+
+    row = await db.get(JobPriorityOverride, job_id)
+    return int(row.priority) if row else 50
+
+
 async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
     job.status = JobStatus.succeeded
     job.result = result
@@ -185,11 +395,20 @@ async def complete_job(db: AsyncSession, job: Job, result: dict) -> Job:
             message=f"Job {job.name} succeeded",
         )
         from fleetkit_api.services.live import live_hub
+        from fleetkit_api.services.metrics import record_metric
 
         await live_hub.publish(
             app.project_id,
             "job.succeeded",
             {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
+        await record_metric(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            name="jobs.succeeded",
+            value=1.0,
+            labels={"job": job.name, "queue": job.queue},
         )
     await db.flush()
     _bust_overview()
@@ -220,6 +439,8 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
             await push_dead_letter(db, job=job, error=error)
 
     if app:
+        from fleetkit_api.services.metrics import record_metric
+
         await emit_event(
             db,
             project_id=app.project_id,
@@ -234,6 +455,14 @@ async def fail_job(db: AsyncSession, job: Job, error: str, *, retry: bool = True
             app.project_id,
             kind,
             {"job_id": job.id, "name": job.name, "status": job.status.value},
+        )
+        await record_metric(
+            db,
+            project_id=app.project_id,
+            app_id=app.id,
+            name="jobs.failed" if job.status == JobStatus.failed else "jobs.retry",
+            value=1.0,
+            labels={"job": job.name, "queue": job.queue},
         )
     await db.flush()
     _bust_overview()

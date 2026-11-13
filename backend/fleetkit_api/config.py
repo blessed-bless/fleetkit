@@ -12,7 +12,10 @@ class Settings(BaseSettings):
     # Prefer Postgres in Docker; SQLite works for solo local smoke tests.
     database_url: str = "sqlite+aiosqlite:///./fleetkit.dev.db"
     redis_url: str = "redis://localhost:6379/0"
-    cors_origins: str = "http://localhost:5173,http://localhost:3000"
+    cors_origins: str = (
+        "http://localhost:5173,http://localhost:5174,http://localhost:3000,"
+        "http://127.0.0.1:5173,http://127.0.0.1:5174,http://127.0.0.1:3000"
+    )
     bootstrap_email: str = "admin@example.com"
     bootstrap_password: str = "fleetkit-admin"
     api_host: str = "0.0.0.0"
@@ -21,6 +24,12 @@ class Settings(BaseSettings):
     worker_stale_seconds: int = 90
     job_default_timeout_seconds: int = 300
     project_name: str = Field(default="FleetKit")
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_tls: bool = True
 
     @property
     def cors_origin_list(self) -> list[str]:

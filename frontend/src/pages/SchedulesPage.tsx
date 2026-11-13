@@ -1,18 +1,13 @@
 import { useEffect, useState } from "react";
 import type { FormEvent } from "react";
 import { api } from "../api";
+import { EmptyState } from "../components/EmptyState";
+import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
 
-type Project = { id: string; slug: string; name: string };
-
-export function SchedulesPage({
-  projects,
-  projectId,
-  onProjectChange,
-}: {
-  projects: Project[];
-  projectId: string;
-  onProjectChange: (id: string) => void;
-}) {
+export function SchedulesPage() {
+  const { t } = useI18n();
+  const { projectId } = useProject();
   const [apps, setApps] = useState<Awaited<ReturnType<typeof api.apps>>>([]);
   const [items, setItems] = useState<Awaited<ReturnType<typeof api.schedules>>>([]);
   const [appId, setAppId] = useState("");
@@ -37,40 +32,31 @@ export function SchedulesPage({
     if (!projectId || !appId) return;
     try {
       await api.createSchedule(projectId, appId, { name, cron, payload: { source: "dashboard" } });
-      setMsg("Schedule создан");
+      setMsg(t("schedules.created"));
       await reload(projectId);
     } catch (err) {
-      setMsg(err instanceof Error ? err.message : "Не создался cron");
+      setMsg(err instanceof Error ? err.message : t("schedules.createFail"));
     }
   }
 
   async function toggle(id: string, enabled: boolean) {
     await api.patchSchedule(projectId, id, { is_enabled: !enabled });
     await reload(projectId);
-    setMsg(enabled ? "Schedule выключен" : "Schedule включён");
+    setMsg(enabled ? t("schedules.disabledMsg") : t("schedules.enabledMsg"));
   }
 
   return (
     <div className="stack-gap">
       <div className="page-head">
         <div>
-          <h1>Schedules</h1>
-          <p className="lead">Cron для apps. Вкл/выкл без удаления.</p>
+          <h1>{t("schedules.title")}</h1>
+          <p className="lead">{t("schedules.lead")}</p>
         </div>
       </div>
-      <div className="field" style={{ maxWidth: 280 }}>
-        <label>Проект</label>
-        <select value={projectId} onChange={(e) => onProjectChange(e.target.value)}>
-          {projects.map((p) => (
-            <option key={p.id} value={p.id}>
-              {p.name}
-            </option>
-          ))}
-        </select>
-      </div>
+      <ProjectPicker />
       <form className="panel row" onSubmit={create}>
         <div className="field">
-          <label>App</label>
+          <label>{t("jobs.app")}</label>
           <select value={appId} onChange={(e) => setAppId(e.target.value)}>
             {apps.map((a) => (
               <option key={a.id} value={a.id}>
@@ -80,29 +66,29 @@ export function SchedulesPage({
           </select>
         </div>
         <div className="field">
-          <label>Имя</label>
+          <label>{t("schedules.name")}</label>
           <input value={name} onChange={(e) => setName(e.target.value)} required />
         </div>
         <div className="field">
-          <label>Cron</label>
+          <label>{t("schedules.cron")}</label>
           <input value={cron} onChange={(e) => setCron(e.target.value)} required />
         </div>
         <button className="btn" type="submit" disabled={!appId}>
-          Создать schedule
+          {t("schedules.create")}
         </button>
       </form>
       {msg ? <p className="muted">{msg}</p> : null}
       <section className="panel">
         {items.length === 0 ? (
-          <p className="muted">Cron пока нет. Добавь heartbeat или sync по расписанию.</p>
+          <EmptyState title={t("schedules.empty")} hint={t("schedules.lead")} />
         ) : (
           <table className="table">
             <thead>
               <tr>
-                <th>Имя</th>
-                <th>Cron</th>
-                <th>Next</th>
-                <th>Статус</th>
+                <th>{t("schedules.name")}</th>
+                <th>{t("schedules.cron")}</th>
+                <th>{t("schedules.next")}</th>
+                <th>{t("schedules.status")}</th>
                 <th />
               </tr>
             </thead>
@@ -118,7 +104,7 @@ export function SchedulesPage({
                   </td>
                   <td>
                     <span className={`badge ${s.is_enabled ? "ok" : "warn"}`}>
-                      {s.is_enabled ? "on" : "off"}
+                      {s.is_enabled ? t("schedules.on") : t("schedules.off")}
                     </span>
                   </td>
                   <td>
@@ -127,7 +113,7 @@ export function SchedulesPage({
                       type="button"
                       onClick={() => toggle(s.id, s.is_enabled).catch((e) => setMsg(e.message))}
                     >
-                      {s.is_enabled ? "Выключить" : "Включить"}
+                      {s.is_enabled ? t("schedules.disable") : t("schedules.enable")}
                     </button>
                   </td>
                 </tr>

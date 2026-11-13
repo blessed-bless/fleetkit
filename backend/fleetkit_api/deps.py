@@ -39,8 +39,41 @@ async def get_project_for_user(
     db: AsyncSession = Depends(get_db),
 ) -> Project:
     project = await db.get(Project, project_id)
-    if project is None or project.owner_id != user.id:
+    if project is None:
         raise HTTPException(status_code=404, detail="Проект не найден")
+    if project.owner_id == user.id:
+        return project
+    from fleetkit_api.models_ext import ProjectMember
+
+    member = await db.scalar(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project_id,
+            ProjectMember.user_id == user.id,
+        )
+    )
+    if member is None:
+        raise HTTPException(status_code=404, detail="Проект не найден")
+    return project
+
+
+async def require_project_admin(
+    project: Project = Depends(get_project_for_user),
+    user: User = Depends(get_current_user),
+    db: AsyncSession = Depends(get_db),
+) -> Project:
+    """Owner or admin/operator member — for invites and membership writes."""
+    if project.owner_id == user.id:
+        return project
+    from fleetkit_api.models_ext import ProjectMember
+
+    member = await db.scalar(
+        select(ProjectMember).where(
+            ProjectMember.project_id == project.id,
+            ProjectMember.user_id == user.id,
+        )
+    )
+    if member is None or member.role not in {"owner", "admin", "operator"}:
+        raise HTTPException(status_code=403, detail="Нужна роль admin/operator")
     return project
 
 

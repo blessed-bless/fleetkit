@@ -1,0 +1,426 @@
+import { useEffect, useState } from "react";
+import type { FormEvent } from "react";
+import { api } from "../api";
+import { EmptyState } from "../components/EmptyState";
+import { useI18n } from "../i18n";
+import { ProjectPicker, useProject } from "../project";
+
+export function OpsPage() {
+  const { t } = useI18n();
+  const { projectId } = useProject();
+  const [retention, setRetention] = useState<Awaited<ReturnType<typeof api.retention>>>([]);
+  const [flags, setFlags] = useState<Awaited<ReturnType<typeof api.flags>>>([]);
+  const [members, setMembers] = useState<Awaited<ReturnType<typeof api.members>>>([]);
+  const [pendingInvites, setPendingInvites] = useState<
+    Awaited<ReturnType<typeof api.projectInvites>>
+  >([]);
+  const [myInvites, setMyInvites] = useState<Awaited<ReturnType<typeof api.myInvites>>>([]);
+  const [flagKey, setFlagKey] = useState("beta.ui");
+  const [flagOn, setFlagOn] = useState(false);
+  const [inviteEmail, setInviteEmail] = useState("");
+  const [inviteRole, setInviteRole] = useState("viewer");
+  const [inviteToken, setInviteToken] = useState("");
+  const [quotas, setQuotas] = useState<Record<string, unknown> | null>(null);
+  const [exportJson, setExportJson] = useState("");
+  const [importJson, setImportJson] = useState("");
+  const [msg, setMsg] = useState("");
+
+  async function reload(id: string) {
+    const [r, f, m, q, inv, mine] = await Promise.all([
+      api.retention(id),
+      api.flags(id),
+      api.members(id),
+      api.quotas(id),
+      api.projectInvites(id).catch(() => []),
+      api.myInvites().catch(() => []),
+    ]);
+    setRetention(r);
+    setFlags(f);
+    setMembers(m);
+    setQuotas(q);
+    setPendingInvites(inv);
+    setMyInvites(mine);
+  }
+
+  useEffect(() => {
+    if (projectId) reload(projectId).catch((e) => setMsg(e.message));
+  }, [projectId]);
+
+  async function saveRetention(kind: string, keepDays: number, enabled: boolean) {
+    if (!projectId) return;
+    try {
+      await api.patchRetention(projectId, kind, { keep_days: keepDays, is_enabled: enabled });
+      setMsg(t("ops.retentionSaved"));
+      await reload(projectId);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("ops.retentionFail"));
+    }
+  }
+
+  async function runNow() {
+    if (!projectId) return;
+    try {
+      const res = await api.runRetention(projectId);
+      const total = Object.values(res).reduce((a, b) => a + b, 0);
+      setMsg(t("ops.retentionRan", { n: total }));
+      await reload(projectId);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("ops.retentionFail"));
+    }
+  }
+
+  async function upsertFlag(e: FormEvent) {
+    e.preventDefault();
+    if (!projectId) return;
+    try {
+      await api.upsertFlag(projectId, { key: flagKey, enabled: flagOn });
+      setMsg(t("ops.flagSaved"));
+      await reload(projectId);
+    } catch (err) {
+      setMsg(err instanceof Error ? err.message : t("ops.flagFail"));
+    }
+  }
+
+  return (
+    <div className="stack-gap">
+      <div className="page-head">
+        <div>
+          <h1>{t("ops.title")}</h1>
+          <p className="lead">{t("ops.lead")}</p>
+        </div>
+      </div>
+      <ProjectPicker />
+      {msg ? <p className="muted">{msg}</p> : null}
+
+      <section className="panel stack-gap">
+        <div className="page-head" style={{ marginBottom: 0 }}>
+          <h2 style={{ margin: 0 }}>{t("ops.retention")}</h2>
+          <button className="btn ghost" type="button" onClick={runNow}>
+            {t("ops.runRetention")}
+          </button>
+        </div>
+        {retention.length === 0 ? (
+          <EmptyState title={t("ops.retentionEmpty")} hint={t("ops.retentionHint")} />
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("ops.kind")}</th>
+                <th>{t("ops.keepDays")}</th>
+                <th>{t("ops.enabled")}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {retention.map((row) => (
+                <RetentionRow key={row.id} row={row} onSave={saveRetention} />
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="panel stack-gap">
+        <h2 style={{ margin: 0 }}>{t("ops.flags")}</h2>
+        <form className="row" onSubmit={upsertFlag}>
+          <div className="field">
+            <label>{t("ops.flagKey")}</label>
+            <input
+              value={flagKey}
+              onChange={(e) => setFlagKey(e.target.value)}
+              pattern="^[a-z0-9_.\-]+$"
+              required
+            />
+          </div>
+          <label className="field" style={{ flexDirection: "row", alignItems: "center", gap: 8 }}>
+            <input
+              type="checkbox"
+              checked={flagOn}
+              onChange={(e) => setFlagOn(e.target.checked)}
+            />
+            {t("ops.enabled")}
+          </label>
+          <button className="btn" type="submit">
+            {t("ops.saveFlag")}
+          </button>
+        </form>
+        {flags.length === 0 ? (
+          <p className="muted">{t("ops.flagsEmpty")}</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("ops.flagKey")}</th>
+                <th>{t("ops.enabled")}</th>
+              </tr>
+            </thead>
+            <tbody>
+              {flags.map((f) => (
+                <tr key={f.id}>
+                  <td>
+                    <code>{f.key}</code>
+                  </td>
+                  <td>
+                    <span className={`badge ${f.enabled ? "ok" : "warn"}`}>
+                      {f.enabled ? t("schedules.on") : t("schedules.off")}
+                    </span>
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+
+      <section className="panel stack-gap">
+        <h2 style={{ margin: 0 }}>{t("ops.quotas")}</h2>
+        {quotas ? (
+          <pre className="log-box">{JSON.stringify(quotas, null, 2)}</pre>
+        ) : (
+          <p className="muted">{t("ops.quotasEmpty")}</p>
+        )}
+      </section>
+
+      <section className="panel stack-gap">
+        <div className="page-head" style={{ marginBottom: 0 }}>
+          <h2 style={{ margin: 0 }}>{t("ops.transfer")}</h2>
+          <button
+            className="btn ghost"
+            type="button"
+            onClick={async () => {
+              if (!projectId) return;
+              try {
+                const data = await api.exportProject(projectId);
+                setExportJson(JSON.stringify(data, null, 2));
+                setMsg(t("ops.exported"));
+              } catch (err) {
+                setMsg(err instanceof Error ? err.message : t("ops.exportFail"));
+              }
+            }}
+          >
+            {t("ops.export")}
+          </button>
+        </div>
+        {exportJson ? <pre className="log-box">{exportJson}</pre> : null}
+        <div className="field">
+          <label>{t("ops.importJson")}</label>
+          <textarea
+            rows={6}
+            value={importJson}
+            onChange={(e) => setImportJson(e.target.value)}
+            placeholder="{}"
+          />
+        </div>
+        <button
+          className="btn"
+          type="button"
+          onClick={async () => {
+            if (!projectId) return;
+            try {
+              const body = JSON.parse(importJson || "{}") as Record<string, unknown>;
+              const res = await api.importProject(projectId, body);
+              setMsg(t("ops.imported", { n: Object.values(res).reduce((a, b) => a + b, 0) }));
+              await reload(projectId);
+            } catch (err) {
+              setMsg(err instanceof Error ? err.message : t("ops.importFail"));
+            }
+          }}
+        >
+          {t("ops.import")}
+        </button>
+      </section>
+
+      <section className="panel stack-gap">
+        <h2 style={{ margin: 0 }}>{t("ops.members")}</h2>
+        {myInvites.length > 0 ? (
+          <div className="stack-gap">
+            <p className="muted" style={{ margin: 0 }}>
+              {t("ops.myInvites")}
+            </p>
+            {myInvites.map((inv) => (
+              <div className="row" key={inv.id} style={{ alignItems: "center" }}>
+                <span>
+                  {inv.email} → {inv.role}
+                </span>
+                <button
+                  className="btn"
+                  type="button"
+                  onClick={async () => {
+                    try {
+                      await api.acceptInvite(inv.token);
+                      setMsg(t("ops.inviteAccepted"));
+                      if (projectId) await reload(projectId);
+                    } catch (err) {
+                      setMsg(err instanceof Error ? err.message : t("ops.inviteAcceptFail"));
+                    }
+                  }}
+                >
+                  {t("ops.acceptInvite")}
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : null}
+        <form
+          className="row"
+          onSubmit={async (e) => {
+            e.preventDefault();
+            if (!projectId) return;
+            try {
+              const inv = await api.createInvite(projectId, {
+                email: inviteEmail,
+                role: inviteRole,
+              });
+              setInviteToken(inv.token);
+              setMsg(t("ops.invited"));
+              setInviteEmail("");
+              await reload(projectId);
+            } catch (err) {
+              setMsg(err instanceof Error ? err.message : t("ops.inviteFail"));
+            }
+          }}
+        >
+          <div className="field">
+            <label>{t("ops.inviteEmail")}</label>
+            <input
+              type="email"
+              value={inviteEmail}
+              onChange={(e) => setInviteEmail(e.target.value)}
+              required
+            />
+          </div>
+          <div className="field">
+            <label>{t("ops.role")}</label>
+            <select value={inviteRole} onChange={(e) => setInviteRole(e.target.value)}>
+              <option value="viewer">viewer</option>
+              <option value="operator">operator</option>
+              <option value="admin">admin</option>
+            </select>
+          </div>
+          <button className="btn" type="submit">
+            {t("ops.invite")}
+          </button>
+        </form>
+        {inviteToken ? <pre className="log-box">{inviteToken}</pre> : null}
+        {pendingInvites.length > 0 ? (
+          <div>
+            <p className="muted">{t("ops.pendingInvites")}</p>
+            <ul style={{ margin: 0, paddingLeft: "1.1rem" }}>
+              {pendingInvites.map((inv) => (
+                <li key={inv.id}>
+                  {inv.email} ({inv.role})
+                </li>
+              ))}
+            </ul>
+          </div>
+        ) : null}
+        {members.length === 0 ? (
+          <p className="muted">{t("ops.membersEmpty")}</p>
+        ) : (
+          <table className="table">
+            <thead>
+              <tr>
+                <th>{t("ops.memberEmail")}</th>
+                <th>{t("ops.role")}</th>
+                <th />
+              </tr>
+            </thead>
+            <tbody>
+              {members.map((m) => (
+                <tr key={m.id}>
+                  <td>{m.email || m.user_id}</td>
+                  <td>
+                    {m.role === "owner" ? (
+                      m.role
+                    ) : (
+                      <select
+                        value={m.role}
+                        onChange={async (e) => {
+                          if (!projectId) return;
+                          try {
+                            await api.updateMemberRole(projectId, m.id, e.target.value);
+                            setMsg(t("ops.roleUpdated"));
+                            await reload(projectId);
+                          } catch (err) {
+                            setMsg(err instanceof Error ? err.message : t("ops.roleFail"));
+                          }
+                        }}
+                      >
+                        <option value="viewer">viewer</option>
+                        <option value="operator">operator</option>
+                        <option value="admin">admin</option>
+                      </select>
+                    )}
+                  </td>
+                  <td>
+                    {m.role !== "owner" ? (
+                      <button
+                        className="btn ghost"
+                        type="button"
+                        onClick={async () => {
+                          if (!projectId) return;
+                          try {
+                            await api.removeMember(projectId, m.id);
+                            setMsg(t("ops.memberRemoved"));
+                            await reload(projectId);
+                          } catch (err) {
+                            setMsg(err instanceof Error ? err.message : t("ops.memberRemoveFail"));
+                          }
+                        }}
+                      >
+                        {t("ops.remove")}
+                      </button>
+                    ) : null}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        )}
+      </section>
+    </div>
+  );
+}
+
+function RetentionRow({
+  row,
+  onSave,
+}: {
+  row: { kind: string; keep_days: number; is_enabled: boolean };
+  onSave: (kind: string, keepDays: number, enabled: boolean) => void;
+}) {
+  const { t } = useI18n();
+  const [days, setDays] = useState(row.keep_days);
+  const [enabled, setEnabled] = useState(row.is_enabled);
+
+  useEffect(() => {
+    setDays(row.keep_days);
+    setEnabled(row.is_enabled);
+  }, [row.keep_days, row.is_enabled]);
+
+  return (
+    <tr>
+      <td>
+        <code>{row.kind}</code>
+      </td>
+      <td>
+        <input
+          type="number"
+          min={1}
+          max={3650}
+          value={days}
+          onChange={(e) => setDays(Number(e.target.value))}
+          style={{ width: 96 }}
+        />
+      </td>
+      <td>
+        <input type="checkbox" checked={enabled} onChange={(e) => setEnabled(e.target.checked)} />
+      </td>
+      <td>
+        <button className="btn ghost" type="button" onClick={() => onSave(row.kind, days, enabled)}>
+          {t("ops.save")}
+        </button>
+      </td>
+    </tr>
+  );
+}
