@@ -30,9 +30,35 @@ cp .env.example .env
 docker compose up --build
 ```
 
-- API: http://localhost:8000/docs
-- UI: http://localhost:8080
+- UI (проксирует API): http://localhost:8080
+- API напрямую: http://localhost:8000/docs
 - Логин: `admin@example.com` / `fleetkit-admin` (меняется в `.env`)
+
+## Production
+
+```bash
+cp .env.production.example .env
+# задай FLEETKIT_SECRET_KEY (≥32), POSTGRES_PASSWORD, FLEETKIT_BOOTSTRAP_PASSWORD
+docker compose -f docker-compose.prod.yml --env-file .env up -d
+```
+
+По умолчанию тянет образы из GHCR после релиза:
+
+- `ghcr.io/blessed-bless/fleetkit-api`
+- `ghcr.io/blessed-bless/fleetkit-web`
+
+Локальная сборка: тот же compose с `build:` (уже прописан). В `production` API не стартует с дефолтным секретом, demo-паролем или SQLite.
+
+Релизы и пакеты: [docs/release.md](docs/release.md).
+
+## SDK / CLI из релиза
+
+```bash
+pip install https://github.com/blessed-bless/fleetkit/releases/download/v0.1.0/fleetkit-0.1.0-py3-none-any.whl
+pip install https://github.com/blessed-bless/fleetkit/releases/download/v0.1.0/fleetkit_cli-0.1.0-py3-none-any.whl
+```
+
+Пока релиза нет — `pip install -e packages/sdk-python` и `pip install -e packages/cli`.
 
 ## Локальная разработка
 
@@ -51,7 +77,7 @@ uvicorn fleetkit_api.main:app --reload --port 8000
 
 ```bash
 docker compose up -d postgres redis
-set FLEETKIT_DATABASE_URL=postgresql+asyncpg://fleetkit:fleetkit@localhost:5432/fleetkit
+export FLEETKIT_DATABASE_URL=postgresql+asyncpg://fleetkit:fleetkit@localhost:5432/fleetkit
 ```
 
 Frontend:
@@ -68,8 +94,8 @@ SDK + example worker:
 cd packages/sdk-python
 pip install -e .
 # в UI: Apps → создать app, Ключи → выпустить ключ
-set FLEETKIT_API_KEY=fk_...
-set FLEETKIT_APP_ID=...
+export FLEETKIT_API_KEY=fk_...
+export FLEETKIT_APP_ID=...
 python ../../examples/http-worker/worker.py
 ```
 
@@ -84,6 +110,8 @@ Agent SDK / workers ─API key─┘
 Scheduler loop (in API) ──cron──▶ enqueue jobs
 Webhook ingest ──────────────▶ enqueue jobs
 ```
+
+В Docker UI и API сидят за одним origin: nginx в `web` проксирует `/api`, `/healthz`, `/docs`.
 
 ## HTTP surface (коротко)
 
@@ -103,6 +131,7 @@ Webhook ingest ──────────────▶ enqueue jobs
 
 - [docs/architecture.md](docs/architecture.md)
 - [docs/api.md](docs/api.md)
+- [docs/release.md](docs/release.md)
 - [docs/ru/README.md](docs/ru/README.md)
 
 ## Лицензия
