@@ -20,23 +20,37 @@ from fleetkit_api.schemas_ext import (
     ChannelCreate,
     ChannelOut,
 )
+from fleetkit_api.security_suite.redaction import redact_mapping
+from fleetkit_api.security_suite.ssrf import SSRFBlocked, assert_safe_url
 from fleetkit_api.services.alerts import evaluate_project_alerts, parse_severity
 from fleetkit_api.services.audit import write_audit
 
 router = APIRouter(tags=["alerts"])
 
 
+def _channel_out(row: NotificationChannel) -> ChannelOut:
+    return ChannelOut(
+        id=row.id,
+        project_id=row.project_id,
+        name=row.name,
+        kind=row.kind.value if hasattr(row.kind, "value") else str(row.kind),
+        config=redact_mapping(row.config or {}),
+        is_enabled=row.is_enabled,
+        created_at=row.created_at,
+    )
+
+
 @router.get("/projects/{project_id}/channels", response_model=list[ChannelOut])
 async def list_channels(
     project: Project = Depends(get_project_for_user),
     db: AsyncSession = Depends(get_db),
-) -> list[NotificationChannel]:
+) -> list[ChannelOut]:
     result = await db.execute(
         select(NotificationChannel)
         .where(NotificationChannel.project_id == project.id)
         .order_by(NotificationChannel.created_at.desc())
     )
-    return list(result.scalars().all())
+    return [_channel_out(row) for row in result.scalars().all()]
 
 
 @router.post("/projects/{project_id}/channels", response_model=ChannelOut, status_code=201)
@@ -44,11 +58,19 @@ async def create_channel(
     body: ChannelCreate,
     project: Project = Depends(get_project_for_user),
     db: AsyncSession = Depends(get_db),
-) -> NotificationChannel:
+) -> ChannelOut:
     try:
         kind = ChannelKind(body.kind)
     except ValueError as exc:
         raise HTTPException(status_code=400, detail="Неизвестный тип канала") from exc
+    if kind == ChannelKind.webhook:
+        url = (body.config or {}).get("url")
+        if not url:
+            raise HTTPException(status_code=400, detail="Для webhook нужен config.url")
+        try:
+            assert_safe_url(str(url))
+        except SSRFBlocked as exc:
+            raise HTTPException(status_code=400, detail=f"URL отклонён: {exc}") from exc
     row = NotificationChannel(
         project_id=project.id,
         name=body.name,
@@ -65,7 +87,7 @@ async def create_channel(
     )
     await db.commit()
     await db.refresh(row)
-    return row
+    return _channel_out(row)
 
 
 @router.get("/projects/{project_id}/alert-rules", response_model=list[AlertRuleOut])
