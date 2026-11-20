@@ -1,4 +1,18 @@
-.PHONY: up down logs api web sdk-test example-worker lint format release-dry packages-build prod-up
+.PHONY: run test lint fmt format up down logs api web sdk-test example-worker release-dry packages-build prod-up
+
+run: up
+
+test:
+	cd backend && pytest -q
+	cd packages/sdk-python && python -m pytest -q
+
+lint:
+	cd backend && ruff check .
+	cd frontend && npm run lint
+
+fmt format:
+	cd backend && ruff format .
+	cd backend && ruff check --fix .
 
 up:
 	docker compose up --build -d
@@ -20,13 +34,6 @@ sdk-test:
 
 example-worker:
 	cd examples/http-worker && python worker.py
-
-lint:
-	cd backend && ruff check .
-	cd frontend && npm run lint
-
-format:
-	cd backend && ruff format .
 
 packages-build:
 	python -m pip install --upgrade build
