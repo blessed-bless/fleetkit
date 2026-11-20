@@ -21,5 +21,5 @@
 |---------|--------------|-----|
 | Worker never appears | Wrong key / app id | Re-check Settings + Apps IDs |
 | Jobs stuck in queued | No worker online | Start example worker / docker worker |
-| Webhook 401 | Bad signature header | Send `X-FleetKit-Signature` = endpoint secret |
+| Webhook 401 | Bad signature header | Send `X-FleetKit-Signature` = raw secret from create |
 | Login 422 on email | Reserved domain | Use a normal domain like `example.com` |

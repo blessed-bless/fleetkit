@@ -89,12 +89,19 @@ def _compare(left: float, op: str, right: float) -> bool:
 
 
 async def _deliver(channel: NotificationChannel, message: str, payload: dict) -> bool:
+    from fleetkit_api.security_suite.ssrf import SSRFBlocked, assert_safe_url
+
     try:
         if channel.kind == ChannelKind.webhook:
             url = channel.config.get("url")
             if not url:
                 return False
-            async with httpx.AsyncClient(timeout=10) as client:
+            try:
+                url = assert_safe_url(str(url))
+            except SSRFBlocked:
+                logger.warning("alert webhook blocked by SSRF guard channel=%s", channel.id)
+                return False
+            async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
                 resp = await client.post(url, json={"message": message, "payload": payload})
                 return resp.status_code < 300
         if channel.kind == ChannelKind.telegram:
@@ -102,7 +109,8 @@ async def _deliver(channel: NotificationChannel, message: str, payload: dict) ->
             chat_id = channel.config.get("chat_id")
             if not token or not chat_id:
                 return False
-            async with httpx.AsyncClient(timeout=10) as client:
+            # Fixed Telegram API host only — never interpolate user-controlled base URLs.
+            async with httpx.AsyncClient(timeout=10, follow_redirects=False) as client:
                 resp = await client.post(
                     f"https://api.telegram.org/bot{token}/sendMessage",
                     json={"chat_id": chat_id, "text": message},

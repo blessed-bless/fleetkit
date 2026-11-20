@@ -14,6 +14,7 @@ from fleetkit_api.models_ext import (
     NotificationChannel,
     RetentionPolicy,
 )
+from fleetkit_api.security_suite.redaction import redact_mapping
 
 
 async def export_project(db: AsyncSession, project: Project) -> dict[str, Any]:
@@ -75,7 +76,12 @@ async def export_project(db: AsyncSession, project: Project) -> dict[str, Any]:
             for s in schedules
         ],
         "channels": [
-            {"name": c.name, "kind": c.kind.value, "config": c.config, "is_enabled": c.is_enabled}
+            {
+                "name": c.name,
+                "kind": c.kind.value,
+                "config": redact_mapping(c.config or {}),
+                "is_enabled": c.is_enabled,
+            }
             for c in channels
         ],
         "alert_rules": [

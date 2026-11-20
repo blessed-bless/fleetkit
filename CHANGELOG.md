@@ -15,4 +15,5 @@
 
 ## Unreleased
 
+- Security hardening: SSRF on alert webhooks and HTTP health checks; webhook secrets hashed; WS JWT via subprotocol; channel secret redaction; ignore `allow_private` in job payloads; stop proxying OpenAPI docs via public nginx.
 - Multi-user RBAC on every route, Redis streams queue backend, Helm chart (see `docs/roadmap.md`).
