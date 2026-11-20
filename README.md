@@ -1,16 +1,16 @@
 # FleetKit
 
-Self-hosted control plane for bots, Python workers, cron jobs and inbound webhooks. Один API и dashboard: воркеры, очередь jobs, heartbeats и фейлы.
+Self-hosted control plane for bots, Python workers, cron and inbound webhooks — for those who want one API and a dashboard instead of a zoo of scripts.
 
 {{скриншот}}
 
 ## Возможности
 
-- FastAPI + JWT UI и API-ключи для агентов
-- Очередь jobs с retry, timeout, `FOR UPDATE SKIP LOCKED`
-- Workers: register, heartbeat, claim/complete/fail
+- Очередь jobs с retry, timeout и claim через `FOR UPDATE SKIP LOCKED`
+- Workers: register, heartbeat, claim / complete / fail
 - Cron schedules и webhook ingest → job
-- React dashboard, Python SDK и CLI
+- React dashboard: apps, jobs, workers, API-ключи
+- Python SDK и CLI для агентов
 - Alerts, secrets vault, DLQ, live WebSocket
 
 ## Архитектура
@@ -27,36 +27,36 @@ flowchart LR
 
 ## Стек
 
-Python 3.12 · FastAPI · SQLAlchemy · Postgres/SQLite · Redis · React · Docker Compose
+Python 3.12 · FastAPI · SQLAlchemy · Postgres / SQLite · Redis · React · Docker Compose
 
 ## Запуск
 
 ```bash
+git clone https://github.com/blessed-bless/fleetkit.git
+cd fleetkit
 cp .env.example .env
-make run
-# или: docker compose up --build
+docker compose up --build
 ```
 
 - UI: http://localhost:8080  
-- API: http://localhost:8000/docs  
-- Login: `admin@example.com` / `fleetkit-admin`
+- API docs: http://localhost:8000/docs  
+- Логин по умолчанию из `.env.example`: `admin@example.com` / `fleetkit-admin`
 
-Локально без Docker: `cd backend && pip install -e ".[dev]" && uvicorn fleetkit_api.main:app --reload --port 8000`.
-
-Проверки: `make test`, `make lint`, `make fmt`. Production: [docs/release.md](docs/release.md).
-
-## Конфиг
+## Конфигурация
 
 | Переменная | Назначение |
 | --- | --- |
-| `FLEETKIT_SECRET_KEY` | JWT/crypto (≥32 в prod) |
+| `FLEETKIT_ENV` | Режим (`development` / `production`) |
+| `FLEETKIT_SECRET_KEY` | JWT / crypto (≥32 символов в prod) |
 | `FLEETKIT_DATABASE_URL` | Async SQLAlchemy URL |
 | `FLEETKIT_REDIS_URL` | Redis |
-| `FLEETKIT_CORS_ORIGINS` | Browser origins |
-| `FLEETKIT_BOOTSTRAP_*` | Первый admin |
-| `FLEETKIT_API_HOST` / `PORT` | Bind |
+| `FLEETKIT_CORS_ORIGINS` | Разрешённые origin для браузера |
+| `FLEETKIT_BOOTSTRAP_EMAIL` | Первый admin |
+| `FLEETKIT_BOOTSTRAP_PASSWORD` | Пароль первого admin |
+| `FLEETKIT_API_HOST` | Host bind API |
+| `FLEETKIT_API_PORT` | Порт API |
 
-Полный список — в `.env.example` и `.env.production.example`.
+Полный список — в `.env.example`. Production: `.env.production.example` и [docs/release.md](docs/release.md).
 
 ## Автор
 
