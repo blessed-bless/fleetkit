@@ -1,0 +1,26 @@
+/* FleetKit tokens — mirrors DESIGN.md for OpenDesign tooling */
+:root {
+  --bg: #0c1219;
+  --surface: #162030;
+  --surface-lift: #1a2738;
+  --fg: #e8eef6;
+  --muted: #8b9bb0;
+  --border: rgba(139, 155, 176, 0.22);
+  --accent: #3dd6c6;
+  --accent-2: #2aa89b;
+  --accent-on: #06201c;
+  --ok: #5ce0a0;
+  --run: #6ec8ff;
+  --warn: #f0b429;
+  --danger: #ff6b6b;
+  --shadow: 0 24px 60px rgba(0, 0, 0, 0.35);
+  --font-display: "Syne", "DM Sans", system-ui, sans-serif;
+  --font-body: "DM Sans", system-ui, sans-serif;
+  --font-mono: ui-monospace, "SF Mono", "JetBrains Mono", Menlo, Consolas, monospace;
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --container-max: 1120px;
+  --motion-fast: 80ms;
+  --motion-enter: 280ms;
+  --ease: cubic-bezier(0.2, 0, 0, 1);
+}
